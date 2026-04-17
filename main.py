@@ -53,7 +53,7 @@ async def note_text(
     username: Annotated[str, Depends(get_current_username)], note: Note
 ):
     notes_count = notes.__len__()
-    notes[notes_count + 1] = {"title": note.title, "text": note.text}
+    notes[notes_count + 1] = {"title": note.title, "text": note.text, "file": False}
     return (username, note)
 
 
@@ -67,7 +67,7 @@ async def create_file(in_file: UploadFile):
     async with aiofiles.open(
         os.path.join(files_dir, f"{unique_id}.{extension}"), "wb"
     ) as out_file:
-        notes[notes_count + 1] = os.path.join(files_dir, f"{unique_id}.{extension}")
+        notes[notes_count + 1] = {"file": True, "location": os.path.join(files_dir, f"{unique_id}.{extension}")}
         content = await in_file.read()  # async read
         await out_file.write(content)  # async write
     return {"file_size": in_file.size}
@@ -76,9 +76,17 @@ async def create_file(in_file: UploadFile):
 ##front end calls for files to this end point, send in number or the file hash.
 @app.post("/requestfile/{filenumber}")
 async def request_file(filenumber: int):
-    return FileResponse(notes[filenumber])
+    if not filenumber <  notes.__len__():
+        raise HTTPException(status_code=400, detail="Item not found")
+    if notes[filenumber]["file"] :
+        return FileResponse(notes[filenumber]["location"])
+    else:
+        raise HTTPException(status_code=400, detail="Item not found")
 
 
-@app.delete("/remove/")
+@app.delete("/remove/{id}")
 async def remove_item(id: int):
-    pass
+    if not id <  notes.__len__():
+        raise HTTPException(status_code=400, detail="Item not found")
+    item = notes.pop(id)
+    return {"item": item}
