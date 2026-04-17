@@ -1,10 +1,10 @@
-from fastapi import FastAPI, Body,File, UploadFile, HTTPException, Depends
+from fastapi import FastAPI, UploadFile, HTTPException, Depends
 from fastapi.responses import FileResponse
 from typing import Annotated
 from pydantic import BaseModel
 import aiofiles
 import os
-import  uuid
+import uuid
 
 from auth import get_current_username
 
@@ -32,26 +32,28 @@ And in response the frontend will query what it needs when it comes to files and
 
 So the get list of items path and file path can be different can't it be? """
 
+
 class Note(BaseModel):
     title: str
     text: str | None = None
 
 
-
 @app.get("/")
 async def health():
-    return "Server running" 
+    return "Server running"
 
 
-@app.get("/notes")
+@app.get("/notes/")
 async def request_all_notes():
     return notes
 
 
-@app.post("/notes")
-async def note_text(username: Annotated[str, Depends(get_current_username)], note: Note):
+@app.post("/notes/")
+async def note_text(
+    username: Annotated[str, Depends(get_current_username)], note: Note
+):
     notes_count = notes.__len__()
-    notes[notes_count + 1] = {"title":note.title, "text":note.text}
+    notes[notes_count + 1] = {"title": note.title, "text": note.text}
     return (username, note)
 
 
@@ -62,17 +64,21 @@ async def create_file(in_file: UploadFile):
     extension = in_file.filename.split(".")[-1]
     if extension not in ALLOWED_EXTENSIONS:
         raise HTTPException(status_code=400, detail="Invalid file extension")
-    async with aiofiles.open(os.path.join(files_dir, f"{unique_id}.{extension}"), 'wb') as out_file:
-        notes[notes_count + 1] = {extension, os.path.join(files_dir, f"{unique_id}.{extension}")}
+    async with aiofiles.open(
+        os.path.join(files_dir, f"{unique_id}.{extension}"), "wb"
+    ) as out_file:
+        notes[notes_count + 1] = os.path.join(files_dir, f"{unique_id}.{extension}")
         content = await in_file.read()  # async read
         await out_file.write(content)  # async write
     return {"file_size": in_file.size}
 
-##front end calls for files to this end point, send in number or the file hash. 
-@app.post("/requestfile")
-async def request_file():
-    pass
 
-@app.delete("/remove")
+##front end calls for files to this end point, send in number or the file hash.
+@app.post("/requestfile/{filenumber}")
+async def request_file(filenumber: int):
+    return FileResponse(notes[filenumber])
+
+
+@app.delete("/remove/")
 async def remove_item(id: int):
     pass
