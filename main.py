@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Body,File, UploadFile, HTTPException
+from fastapi import FastAPI, Body,File, UploadFile, HTTPException, Depends
 from fastapi.responses import FileResponse
 from typing import Annotated
 from pydantic import BaseModel
@@ -6,14 +6,23 @@ import aiofiles
 import os
 import  uuid
 
+from auth import get_current_username
 
-app = FastAPI()
+
+app = FastAPI(dependencies=[Depends(get_current_username)])
 
 notes: dict = {}
 
 files_dir = "files"
 
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg"}
+
+
+##TODO
+"""
+- Dockerize
+- Add Database 
+"""
 
 
 """Everything goes into a dictionary, so response is ordered and annotated. 
@@ -34,11 +43,16 @@ async def health():
     return "Server running" 
 
 
+@app.get("/notes")
+async def request_all_notes():
+    return notes
+
+
 @app.post("/notes")
-async def note_text(note: Note):
+async def note_text(username: Annotated[str, Depends(get_current_username)], note: Note):
     notes_count = notes.__len__()
-    notes[notes_count + 1] = {note.title, note.text}
-    return(notes)
+    notes[notes_count + 1] = {"title":note.title, "text":note.text}
+    return (username, note)
 
 
 @app.post("/files/")
@@ -54,18 +68,11 @@ async def create_file(in_file: UploadFile):
         await out_file.write(content)  # async write
     return {"file_size": in_file.size}
 
-
-@app.post("/callfile")
+##front end calls for files to this end point, send in number or the file hash. 
+@app.post("/requestfile")
 async def request_file():
-    ##front end calls for files to this end point, send in number or the file hash. 
     pass
 
 @app.delete("/remove")
 async def remove_item(id: int):
     pass
-
-
-
-## Clean up code
-## add authentication 
-## add database 
