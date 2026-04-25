@@ -1,198 +1,51 @@
 # Clavis
 
-Clavis is a FastAPI-based note management API that allows authenticated users to create, update, retrieve, and delete notes. Notes can contain text content and optional file attachments. Files are stored in Amazon S3 using presigned URLs, while note metadata is stored in a relational database using SQLAlchemy.
+**Clavis** is an intelligent personal knowledge and productivity platform that combines secure cloud storage, note management, and AI-assisted organization into a single backend system.
 
-## Features
+Designed for individuals who manage ideas, documents, tasks, and events across multiple devices, Clavis acts as a private digital workspace where information can be captured, stored, retrieved, and transformed into actionable plans.
 
-* User registration
-* Authentication-protected endpoints
-* Create text notes
-* Attach files to notes
-* Retrieve all notes belonging to a user
-* Retrieve a specific note
-* Update note content and attached files
-* Delete individual notes
-* Bulk delete multiple notes
-* User data isolation (users can only access their own notes)
-* Amazon S3 integration using presigned URLs
-* Async SQLAlchemy database access
+Unlike traditional note-taking applications, Clavis is being built as a foundation for AI-powered personal organization. Users can store notes and files securely in the cloud while leveraging intelligent features that help organize information, surface relevant content, and manage upcoming events, deadlines, and daily activities.
+
+## Core Capabilities
+
+* Secure user authentication and data isolation
+* Personal cloud storage for notes and files
+* Fast retrieval of documents and knowledge assets
+* Amazon S3-backed file storage with presigned URLs
+* Async architecture for scalable performance
+* Bulk note management operations
 * Dockerized deployment
-* Automated test suite
+* Automated testing and validation
 
-## Technology Stack
+## AI-Powered Productivity (In Development)
 
-* FastAPI
-* SQLAlchemy (Async)
-* Pydantic
-* PostgreSQL / SQL Database
-* Amazon S3
-* Docker
-* UV Package Manager
-* Uvicorn
+Clavis is evolving beyond note storage into an AI-assisted personal operating system capable of:
 
-## API Endpoints
+* Intelligent event and schedule management
+* Deadline and reminder organization
+* AI-generated task planning
+* Context-aware note retrieval
+* Knowledge extraction from stored content
+* Semantic search across notes and documents
+* Personalized daily planning assistance
+* Natural language interaction with stored information
 
-### Health Check
+## Architecture
 
-```http
-GET /health
-```
+The platform follows a modern cloud-native architecture:
 
-Returns server status.
+* **FastAPI** for high-performance API services
+* **Async SQLAlchemy** for database operations
+* **PostgreSQL** for persistent metadata storage
+* **Amazon S3** for scalable object storage
+* **Docker** for deployment and portability
+* **Pydantic** for data validation
+* **UV** for dependency and environment management
 
-### Authentication
+## Vision
 
-```http
-POST /signup
-```
+Clavis aims to become a personal knowledge cloud where notes, files, schedules, and AI assistance converge into a single system. Rather than functioning as a simple note repository, it serves as an intelligent workspace that helps users capture information, organize their digital assets, and transform ideas into actions.
 
-Creates a new user account.
+## Status
 
-### Notes
-
-```http
-GET /notes
-```
-
-Returns all notes belonging to the authenticated user.
-
-```http
-GET /notes/{note_id}
-```
-
-Returns a specific note.
-
-```http
-POST /notes
-```
-
-Creates a note with optional file attachment.
-
-```http
-PATCH /notes/{note_id}
-```
-
-Updates an existing note and optionally uploads a new file.
-
-```http
-DELETE /notes/{note_id}
-```
-
-Deletes a single note.
-
-```http
-DELETE /notes
-```
-
-Bulk delete multiple notes.
-
-### File Downloads
-
-```http
-GET /notes/files/{file_name}
-```
-
-Generates a presigned S3 download URL.
-
-## Project Structure
-
-```text
-.
-├── auth/
-├── db/
-├── schemas/
-├── utils/
-├── tests/
-├── main.py
-├── pyproject.toml
-├── uv.lock
-└── Dockerfile
-```
-
-## Running Locally
-
-### Requirements
-
-* Python 3.13+
-* UV
-* PostgreSQL
-* AWS S3 Bucket
-
-Install dependencies:
-
-```bash
-uv sync
-```
-
-Start the application:
-
-```bash
-uv run uvicorn main:app --reload
-```
-
-Application will be available at:
-
-```text
-http://localhost:8000
-```
-
-Interactive API documentation:
-
-```text
-http://localhost:8000/docs
-```
-
-## Running with Docker
-
-Build the image:
-
-```bash
-docker build -t clavis .
-```
-
-Run the container:
-
-```bash
-docker run -p 8000:80 clavis
-```
-
-The API will be available at:
-
-```text
-http://localhost:8000
-```
-
-## Environment Variables
-
-The application requires configuration for:
-
-```env
-DATABASE_URL=
-AWS_ACCESS_KEY_ID=
-AWS_SECRET_ACCESS_KEY=
-AWS_REGION=
-AWS_BUCKET_NAME=
-SECRET_KEY=
-```
-
-## Security
-
-* Passwords are stored as hashes.
-* All note operations require authentication.
-* Users can only access their own notes.
-* File downloads are performed through time-limited presigned URLs.
-
-## Future Improvements
-
-* File size validation
-* Frontend client
-* Logging
-* Pre-commit hooks
-* CI/CD pipeline
-* Additional authentication features
-* Improved file upload workflow
-* API rate limiting
-
-## License
-
-MIT License
+Clavis is being developed at a rapid pace, with new features added regularly. A public online release is planned soon, bringing AI-assisted productivity tools, personal knowledge management, and secure cloud storage into a unified platform.
