@@ -1,12 +1,18 @@
-from fastapi import FastAPI, UploadFile, HTTPException, Depends
+from fastapi import FastAPI, UploadFile, HTTPException, Depends, Form
 from fastapi.responses import FileResponse
+from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Annotated
 import aiofiles
 import os
 import uuid
 
+from utils.hash_password import hash_password
 from schemas.core import NoteBase, NoteCreate, as_form
+from schemas.auth import UserOut, UserSignup
 from auth import get_current_username
+from db.init_db import get_db
+from db.model_notes import User
 
 
 app = FastAPI(dependencies=[Depends(get_current_username)])
@@ -55,6 +61,19 @@ async def health():
 @app.get("/notes/")
 async def request_all_notes():
     return notes
+
+
+@app.post("/signup/", response_model=None)
+async def signup( session: Annotated[AsyncSession, Depends(get_db)],
+    user: Annotated[UserSignup, Form()]
+):
+    password_hash = hash_password(user.password)
+    new_user = User(
+        email=user.email, name=user.username, password_hash=password_hash
+    )
+    session.add(new_user)
+    await session.commit()
+    return {"user": user}
 
 
 @app.post("/notes/")
