@@ -12,15 +12,15 @@ async def get_current_username(
     """
     HTTP Basic authentication.
 
-    [HTTP Basic Auth] The browser itself typically caches the credentials 
-    for the duration of the session and automatically re-sends them in the 
-    Authorization header on subsequent requests — so the login prompt usually 
-    only appears once per browser session, not on every request. However, this is 
+    [HTTP Basic Auth] The browser itself typically caches the credentials
+    for the duration of the session and automatically re-sends them in the
+    Authorization header on subsequent requests — so the login prompt usually
+    only appears once per browser session, not on every request. However, this is
     browser behavior, not something HTTPBasic or FastAPI controls directly.
     """
 
     current_username_bytes = credentials.username.encode("utf8")
-    correct_username_bytes = b"stanleyjob"
+    correct_username_bytes = b"stanley"
     is_correct_username = secrets.compare_digest(
         current_username_bytes, correct_username_bytes
     )

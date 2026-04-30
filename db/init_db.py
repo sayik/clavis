@@ -1,9 +1,10 @@
 from typing import Annotated, AsyncIterator
 
 from fastapi import Depends
+
 # from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from db.model_notes import Base, User, Note, File
+from .model_notes import Base, User, Note, File
 
 DB_URI = "sqlite+aiosqlite:///./notes.db"
 
@@ -25,7 +26,9 @@ async def get_db() -> AsyncIterator[AsyncSession]:
             await session.rollback()
             raise
 
+
 SessionDep = Annotated[AsyncSession, Depends(get_db)]
+
 
 async def init_db():
     async with async_engine.begin() as conn:
@@ -34,4 +37,5 @@ async def init_db():
 
 if __name__ == "__main__":
     import asyncio
+
     asyncio.run(init_db())
