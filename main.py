@@ -1,6 +1,7 @@
 from fastapi import FastAPI, UploadFile, HTTPException, status, Depends, Form
 from fastapi.responses import FileResponse
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Annotated
 import aiofiles
@@ -15,7 +16,7 @@ from db.init_db import get_db
 from db.model_notes import User, Note, File
 
 
-app = FastAPI(dependencies=[Depends(get_current_username)])
+app = FastAPI()
 
 notes: dict = {}
 
@@ -34,37 +35,88 @@ ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg"}
 """
 
 
-"""
-So the get list of items path and file path can be different can't it be? 
--Your notes object stores objects with different "shapes". Is there a way to map them better? 
-You have a Note schema, could you extend that in some way?
-
-re: #2 and #3
-If you think about question #2 and the possible ways to fix it, you're going to need to either change how data is stored and/or how it's accessed. 
-Is a `dict` the right way to store the data? Compare with how a database would store it. In tables with an integer primary key, 
-databases usually track with a "sequence" that will always give you the _next_ number to use. You could use something like that. 
-You could also use a UUID, but then you need to think about how to sort items. Do you want to show them in the order created by default?
-
-
-Since you're using pydantic, you can think through whether you want to use different schemas for the different kinds of notes, 
-one schema that could hold all the fields, or whether the note "metadata" (e.g. title, creation timestamp) is stored separately from the note content. 
-Could you have a note with text *and* a file? Could you have a note with multiple files?
-
-"""
-
-
 @app.get("/")
 async def health():
     return "Server running"
 
 
 @app.get("/notes/")
-async def request_all_notes():
-    return notes
+async def request_all_notes(
+    username: Annotated[str, Depends(get_current_username)],
+    session: Annotated[AsyncSession, Depends(get_db)],
+):
+    result = await session.execute(select(User).where(User.name == username))
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    result = await session.execute(
+        select(Note).where(Note.user_id == user.id).options(selectinload(Note.files))
+    )
+    notes = result.scalars().all()
+
+    return [
+        {
+            "id": note.id,
+            "title": note.title,
+            "content": note.content,
+            "created_at": note.created_at,
+            "files": [
+                {
+                    "file_name": f.file_name,
+                    "file_size": f.file_size,
+                    "file_url": f.file_url,
+                }
+                for f in note.files
+            ],
+        }
+        for note in notes
+    ]
+
 
 @app.get("/specificnote/")
-async def specific_note():
-    pass
+async def specific_note(
+    note_id: str,
+    username: Annotated[str, Depends(get_current_username)],
+    session: Annotated[AsyncSession, Depends(get_db)],
+    file: bool = False
+):
+    result = await session.execute(
+        select(User).where(User.name == username)
+    )
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    result = await session.execute(
+        select(Note)
+        .where(Note.id == note_id, Note.user_id == user.id)
+        .options(selectinload(Note.files))
+    )
+    note = result.scalar_one_or_none()
+
+    if not note:
+        raise HTTPException(status_code=404, detail="Note not found")
+
+    """
+    need a way to repond to file request
+    """
+    return {
+        "id": note.id,
+        "title": note.title,
+        "content": note.content,
+        "created_at": note.created_at,
+        "files": [
+            {
+                "file_name": f.file_name,
+                "file_size": f.file_size,
+                "file_url": f.file_url,
+            }
+            for f in note.files
+        ],
+    }
 
 
 @app.post("/signup/", response_model=None)
@@ -101,13 +153,10 @@ async def create_note(
     username: Annotated[str, Depends(get_current_username)],
     in_file: UploadFile | None = None,
 ):
-    result = await session.execute(
-        select(User).where(User.name == username)
-    )
+    result = await session.execute(select(User).where(User.name == username))
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    
 
     new_note = Note(
         title=note.title,
@@ -133,7 +182,7 @@ async def create_note(
             await out_file.write(content)
 
         new_file = File(
-            note_id=new_note.id,  # now available
+            note_id=new_note.id,
             file_name=in_file.filename,
             file_url=file_path,
             file_size=len(content),
@@ -146,9 +195,8 @@ async def create_note(
     return {"note_id": new_note_id}
 
 
-
 @app.delete("/remove/{id}")
-async def remove_item(id: int):
+async def remove_item(id: int, username: Annotated[str, Depends(get_current_username)]):
     if not id < notes.__len__():
         raise HTTPException(status_code=400, detail="Item not found")
     item = notes.pop(id)
