@@ -1,6 +1,6 @@
-from fastapi import FastAPI, UploadFile, HTTPException, Depends, Form
+from fastapi import FastAPI, UploadFile, HTTPException, status, Depends, Form
 from fastapi.responses import FileResponse
-from sqlalchemy.orm import Session
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Annotated
 import aiofiles
@@ -12,7 +12,7 @@ from schemas.core import NoteBase, NoteCreate, as_form
 from schemas.auth import UserOut, UserSignup
 from auth import get_current_username
 from db.init_db import get_db
-from db.model_notes import User
+from db.model_notes import User, Note, File
 
 
 app = FastAPI(dependencies=[Depends(get_current_username)])
@@ -62,15 +62,33 @@ async def health():
 async def request_all_notes():
     return notes
 
+@app.get("/specificnote/")
+async def specific_note():
+    pass
+
 
 @app.post("/signup/", response_model=None)
-async def signup( session: Annotated[AsyncSession, Depends(get_db)],
-    user: Annotated[UserSignup, Form()]
+async def signup(
+    session: Annotated[AsyncSession, Depends(get_db)],
+    user: Annotated[UserSignup, Form()],
 ):
+    result = await session.execute(select(User).where(User.email == user.email))
+    existing_email = result.scalar_one_or_none()
+    if existing_email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered"
+        )
+
+    result = await session.execute(select(User).where(User.name == user.username))
+    existing_username = result.scalar_one_or_none()
+
+    if existing_username:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Username already taken"
+        )
+
     password_hash = hash_password(user.password)
-    new_user = User(
-        email=user.email, name=user.username, password_hash=password_hash
-    )
+    new_user = User(email=user.email, name=user.username, password_hash=password_hash)
     session.add(new_user)
     await session.commit()
     return {"user": user}
@@ -78,37 +96,55 @@ async def signup( session: Annotated[AsyncSession, Depends(get_db)],
 
 @app.post("/notes/")
 async def create_note(
-    note: Annotated[NoteCreate, Depends(as_form)], in_file: UploadFile | None = None
+    note: Annotated[NoteCreate, Depends(as_form)],
+    session: Annotated[AsyncSession, Depends(get_db)],
+    username: Annotated[str, Depends(get_current_username)],
+    in_file: UploadFile | None = None,
 ):
-    notes_count = notes.__len__()
+    result = await session.execute(
+        select(User).where(User.name == username)
+    )
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+
+    new_note = Note(
+        title=note.title,
+        content=note.text,
+        user_id=user.id,
+    )
+
+    session.add(new_note)
+
+    await session.flush()
+
     if in_file:
-        unique_id = uuid.uuid4().hex
         extension = in_file.filename.split(".")[-1]
+
         if extension not in ALLOWED_EXTENSIONS:
             raise HTTPException(status_code=400, detail="Invalid file extension")
-        async with aiofiles.open(
-            os.path.join(files_dir, f"{unique_id}.{extension}"), "wb"
-        ) as out_file:
-            notes[notes_count + 1] = {
-                "file": True,
-                "location": os.path.join(files_dir, f"{unique_id}.{extension}"),
-            }
-            content = await in_file.read()  # async read
-            await out_file.write(content)  # async write
-        return {"file_size": in_file.size, "note": note}
-    else:
-        return {"note": note}
 
+        unique_id = uuid.uuid4().hex
+        file_path = os.path.join(files_dir, f"{unique_id}.{extension}")
 
-##front end calls for files to this end point, send in number or the file hash.
-@app.post("/requestfile/{filenumber}")
-async def request_file(filenumber: int):
-    if not filenumber < notes.__len__():
-        raise HTTPException(status_code=400, detail="Item not found")
-    if notes[filenumber]["file"]:
-        return FileResponse(notes[filenumber]["location"])
-    else:
-        raise HTTPException(status_code=400, detail="Item not found")
+        async with aiofiles.open(file_path, "wb") as out_file:
+            content = await in_file.read()
+            await out_file.write(content)
+
+        new_file = File(
+            note_id=new_note.id,  # now available
+            file_name=in_file.filename,
+            file_url=file_path,
+            file_size=len(content),
+        )
+        session.add(new_file)
+
+    new_note_id = new_note.id
+    await session.commit()
+
+    return {"note_id": new_note_id}
+
 
 
 @app.delete("/remove/{id}")

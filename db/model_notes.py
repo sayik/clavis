@@ -30,7 +30,7 @@ class Note(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now()
     )  # won't it get updated when data is changed?
-    updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
     users: Mapped["User"] = relationship(back_populates="notes")
 
     files: Mapped[list["File"]] = relationship(

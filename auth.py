@@ -1,13 +1,19 @@
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from typing import Annotated
-import secrets
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+
+from db.init_db import get_db
+from db.model_notes import User
+from utils.hash_password import verify_password
 
 security = HTTPBasic()
 
 
 async def get_current_username(
     credentials: Annotated[HTTPBasicCredentials, Depends(security)],
+    session: Annotated[AsyncSession, Depends(get_db)],
 ):
     """
     HTTP Basic authentication.
@@ -19,20 +25,22 @@ async def get_current_username(
     browser behavior, not something HTTPBasic or FastAPI controls directly.
     """
 
-    current_username_bytes = credentials.username.encode("utf8")
-    correct_username_bytes = b"stanley"
-    is_correct_username = secrets.compare_digest(
-        current_username_bytes, correct_username_bytes
+    result = await session.execute(select(User).where(User.name == credentials.username)
     )
-    current_password_bytes = credentials.password.encode("utf8")
-    correct_password_bytes = b"sword"
-    is_correct_password = secrets.compare_digest(
-        current_password_bytes, correct_password_bytes
-    )
-    if not (is_correct_username and is_correct_password):
+    user = result.scalar_one_or_none()
+
+    if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
+            detail="Invalid credentials",
             headers={"WWW-Authenticate": "Basic"},
         )
+
+    if not verify_password(credentials.password, user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid credentials",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+
     return credentials.username
