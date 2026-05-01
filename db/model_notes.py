@@ -29,10 +29,9 @@ class Note(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     created_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now()
-    )  # won't it get updated when data is changed?
+    ) 
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
     users: Mapped["User"] = relationship(back_populates="notes")
-
     files: Mapped[list["File"]] = relationship(
         back_populates="note", cascade="all, delete-orphan"
     )
@@ -44,15 +43,10 @@ class File(Base):
     id: Mapped[str] = mapped_column(
         String, primary_key=True, default=lambda: str(uuid.uuid4())
     )
-
     note_id: Mapped[str] = mapped_column(ForeignKey("notes.id"), nullable=False)
-
     file_name: Mapped[str] = mapped_column(String(255))
     file_url: Mapped[str] = mapped_column(String(500))
-
     file_size: Mapped[int] = mapped_column(nullable=True)
-
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
-    # Relationships
     note: Mapped["Note"] = relationship(back_populates="files")
