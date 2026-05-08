@@ -11,7 +11,7 @@ from utils.hash_password import verify_password
 security = HTTPBasic()
 
 
-async def get_current_username(
+async def get_current_user(
     credentials: Annotated[HTTPBasicCredentials, Depends(security)],
     session: Annotated[AsyncSession, Depends(get_db)],
 ):
@@ -25,7 +25,8 @@ async def get_current_username(
     browser behavior, not something HTTPBasic or FastAPI controls directly.
     """
 
-    result = await session.execute(select(User).where(User.name == credentials.username)
+    result = await session.execute(
+        select(User).where(User.name == credentials.username)
     )
     user = result.scalar_one_or_none()
 
@@ -43,4 +44,4 @@ async def get_current_username(
             headers={"WWW-Authenticate": "Basic"},
         )
 
-    return credentials.username
+    return user

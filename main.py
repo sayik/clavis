@@ -11,7 +11,7 @@ import uuid
 from utils.hash_password import hash_password
 from schemas.core import NoteBase, NoteCreate, as_form
 from schemas.auth import UserOut, UserSignup
-from auth import get_current_username
+from auth import get_current_user
 from db.init_db import get_db
 from db.model_notes import User, Note, File
 
@@ -32,6 +32,24 @@ ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg"}
 - Could you make it so that adding a new note uses a single endpoint, regardless of the "type" (text vs. file)?
 - Add auth as a requirement for all the endpoints. Can you limit it so each user only can only interact with their own notes?
 - Separate your app into multiple files, e.g. schemas, routes, data access layer, ...
+- Delete note
+- don't handle hashing
+- tests
+
+----- re: #3, Most RESTful APIs will have URLs like
+        POST /notes (create)
+        GET /notes (list)
+        GET /notes/{note_id} (detail)
+        PUT/PATCH /notes/{note_id} (update)
+        DELETE /notes/{note_id} (delete)
+
+        Additional note-specific "actions" usually take the form of
+        POST /notes/{note_id}/action-name
+
+----- Ah I see it now, I'll make the get_current_user return the User object instead of username itself. So the route functions can directly access user id and other information.
+----- Will do response_models.
+
+----- re: #4 yes, OAuth2 is a great way to let people log in with accounts they already have
 """
 
 
@@ -42,14 +60,9 @@ async def health():
 
 @app.get("/notes/")
 async def request_all_notes(
-    username: Annotated[str, Depends(get_current_username)],
+    user: Annotated[User, Depends(get_current_user)],
     session: Annotated[AsyncSession, Depends(get_db)],
 ):
-    result = await session.execute(select(User).where(User.name == username))
-    user = result.scalar_one_or_none()
-
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
 
     result = await session.execute(
         select(Note).where(Note.user_id == user.id).options(selectinload(Note.files))
@@ -78,17 +91,10 @@ async def request_all_notes(
 @app.get("/specificnote/")
 async def specific_note(
     note_id: str,
-    username: Annotated[str, Depends(get_current_username)],
+    user: Annotated[User, Depends(get_current_user)],
     session: Annotated[AsyncSession, Depends(get_db)],
-    file: bool = False
+    file: bool = False,
 ):
-    result = await session.execute(
-        select(User).where(User.name == username)
-    )
-    user = result.scalar_one_or_none()
-
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
 
     result = await session.execute(
         select(Note)
@@ -150,13 +156,9 @@ async def signup(
 async def create_note(
     note: Annotated[NoteCreate, Depends(as_form)],
     session: Annotated[AsyncSession, Depends(get_db)],
-    username: Annotated[str, Depends(get_current_username)],
+    user: Annotated[User, Depends(get_current_user)],
     in_file: UploadFile | None = None,
 ):
-    result = await session.execute(select(User).where(User.name == username))
-    user = result.scalar_one_or_none()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
 
     new_note = Note(
         title=note.title,
@@ -196,7 +198,7 @@ async def create_note(
 
 
 @app.delete("/remove/{id}")
-async def remove_item(id: int, username: Annotated[str, Depends(get_current_username)]):
+async def remove_item(id: int, username: Annotated[str, Depends(get_current_user)]):
     if not id < notes.__len__():
         raise HTTPException(status_code=400, detail="Item not found")
     item = notes.pop(id)
