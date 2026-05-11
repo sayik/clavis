@@ -1,6 +1,6 @@
-from fastapi import FastAPI, UploadFile, HTTPException, status, Depends, Form
+from fastapi import FastAPI, UploadFile, HTTPException, status, Depends, Form, Body
 from fastapi.responses import FileResponse
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Annotated
@@ -9,7 +9,7 @@ import os
 import uuid
 
 from utils.hash_password import hash_password
-from schemas.core import NoteBase, NoteCreate, as_form
+from schemas.core import NoteBase, NoteCreate, as_form, BulkDeleteIDs
 from schemas.auth import UserOut, UserSignup
 from auth import get_current_user
 from db.init_db import get_db
@@ -46,24 +46,23 @@ ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg"}
         Additional note-specific "actions" usually take the form of
         POST /notes/{note_id}/action-name
 
------ Ah I see it now, I'll make the get_current_user return the User object instead of username itself. So the route functions can directly access user id and other information.
+--Done--- Ah I see it now, I'll make the get_current_user return the User object instead of username itself. So the route functions can directly access user id and other information.
 ----- Will do response_models.
 
 ----- re: #4 yes, OAuth2 is a great way to let people log in with accounts they already have
 """
 
 
-@app.get("/")
+@app.get("/health")
 async def health():
     return "Server running"
 
 
-@app.get("/notes/")
+@app.get("/notes/", response_model=None)
 async def request_all_notes(
     user: Annotated[User, Depends(get_current_user)],
     session: Annotated[AsyncSession, Depends(get_db)],
 ):
-
     result = await session.execute(
         select(Note).where(Note.user_id == user.id).options(selectinload(Note.files))
     )
@@ -88,14 +87,13 @@ async def request_all_notes(
     ]
 
 
-@app.get("/specificnote/")
+@app.get("/notes/{note_id}", response_model=None)
 async def specific_note(
     note_id: str,
     user: Annotated[User, Depends(get_current_user)],
     session: Annotated[AsyncSession, Depends(get_db)],
     file: bool = False,
 ):
-
     result = await session.execute(
         select(Note)
         .where(Note.id == note_id, Note.user_id == user.id)
@@ -107,7 +105,7 @@ async def specific_note(
         raise HTTPException(status_code=404, detail="Note not found")
 
     """
-    need a way to repond to file request
+    need a way to respond to file request
     """
     return {
         "id": note.id,
@@ -123,6 +121,17 @@ async def specific_note(
             for f in note.files
         ],
     }
+
+
+## SEND FILES
+@app.get("/notes/{file_id}", response_model=None)
+async def file_response(
+    file_id: str,
+    user: Annotated[User, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db)],
+):
+    result = await session.execute(select(File).where(File.id == file_id))
+    return file_response(result.file)
 
 
 @app.post("/signup/", response_model=None)
@@ -152,14 +161,13 @@ async def signup(
     return {"user": user}
 
 
-@app.post("/notes/")
+@app.post("/notes/", response_model=NoteBase)
 async def create_note(
     note: Annotated[NoteCreate, Depends(as_form)],
     session: Annotated[AsyncSession, Depends(get_db)],
     user: Annotated[User, Depends(get_current_user)],
     in_file: UploadFile | None = None,
 ):
-
     new_note = Note(
         title=note.title,
         content=note.text,
@@ -197,9 +205,50 @@ async def create_note(
     return {"note_id": new_note_id}
 
 
-@app.delete("/remove/{id}")
-async def remove_item(id: int, username: Annotated[str, Depends(get_current_user)]):
-    if not id < notes.__len__():
-        raise HTTPException(status_code=400, detail="Item not found")
-    item = notes.pop(id)
-    return {"item": item}
+## NEED TO DO UPDATE Individual NOTES
+@app.patch("/notes/{note_id}")
+async def update_note():
+    pass
+
+
+## BULK DELETE NOTES
+@app.delete("/notes/", response_model=None)
+async def bulk_delete(
+    data: BulkDeleteIDs,
+    user: Annotated[User, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db)],
+):
+    if not data.removable:
+        raise HTTPException(status_code=400, detail="No note IDs provided")
+
+    existing = await session.scalars(
+        select(Note.id).where(Note.id.in_(data.removable), Note.user_id == user.id)
+    )
+
+    existing_ids = existing.all()
+
+    if len(set(existing_ids)) != len(set(data.removable)):
+        raise HTTPException(status_code=404, detail="Matching notes not found")
+
+    await session.execute(
+        delete(Note).where(Note.id.in_(data.removable), Note.user_id == user.id)
+    )
+
+    await session.commit()
+
+    return {"message": "notes deleted"}
+
+
+## individual delete
+@app.delete("/notes/{note_id}", response_model=None)
+async def remove_item(
+    note_id: str,
+    user: Annotated[User, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db)],
+):
+    await session.execute(
+        delete(Note).where(Note.id == note_id, Note.user_id == user.id)
+    )
+    await session.commit()
+
+    return {"message": "Note deleted"}

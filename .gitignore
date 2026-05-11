@@ -6,6 +6,7 @@ dist/
 wheels/
 *.egg-info
 notes.db
+baggage.txt
 
 # Virtual environments
 .venv

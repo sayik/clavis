@@ -20,5 +20,7 @@ def as_form(
 ) -> NoteCreate:
     return NoteCreate(title=title, created_at=created_at, text=text)
 
+class BulkDeleteIDs(BaseModel):
+    removable: list[str]
 
 ## Response model
