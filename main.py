@@ -1,14 +1,12 @@
 from fastapi import FastAPI, UploadFile, HTTPException, status, Depends, Form, Body
 from fastapi.responses import FileResponse
-from sqlalchemy import select, delete
+from sqlalchemy import select, delete, update
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Annotated
-import aiofiles
-import os
-import uuid
 
 from utils.hash_password import hash_password
+from utils.file_handling import save_file
 from schemas.core import NoteBase, NoteCreate, as_form, BulkDeleteIDs
 from schemas.auth import UserOut, UserSignup
 from auth import get_current_user
@@ -18,15 +16,9 @@ from db.model_notes import User, Note, File
 
 app = FastAPI()
 
-notes: dict = {}
-
-files_dir = "files"
-
-ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg"}
-
-
 ##TODO
 """
+- FileResponse
 - Dockerize !
 - Add Database 
 - Could you make it so that adding a new note uses a single endpoint, regardless of the "type" (text vs. file)?
@@ -36,7 +28,7 @@ ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg"}
 - don't handle hashing
 - tests
 
------ re: #3, Most RESTful APIs will have URLs like
+--Done--- re: #3, Most RESTful APIs will have URLs like
         POST /notes (create)
         GET /notes (list)
         GET /notes/{note_id} (detail)
@@ -50,6 +42,7 @@ ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg"}
 ----- Will do response_models.
 
 ----- re: #4 yes, OAuth2 is a great way to let people log in with accounts they already have
+----- Cascade delete images/audio that was deleted from db
 """
 
 
@@ -179,36 +172,78 @@ async def create_note(
     await session.flush()
 
     if in_file:
-        extension = in_file.filename.split(".")[-1]
+        file_data = await save_file(in_file)
+        print(file_data)
 
-        if extension not in ALLOWED_EXTENSIONS:
-            raise HTTPException(status_code=400, detail="Invalid file extension")
-
-        unique_id = uuid.uuid4().hex
-        file_path = os.path.join(files_dir, f"{unique_id}.{extension}")
-
-        async with aiofiles.open(file_path, "wb") as out_file:
-            content = await in_file.read()
-            await out_file.write(content)
-
-        new_file = File(
+        add_new_file = File(
             note_id=new_note.id,
             file_name=in_file.filename,
-            file_url=file_path,
-            file_size=len(content),
+            file_url=file_data["file_url"],
+            file_size=file_data["file_size"],
         )
-        session.add(new_file)
+        session.add(add_new_file)
 
-    new_note_id = new_note.id
+    new_note_data = NoteBase(title=new_note.title, created_at=new_note.created_at)
     await session.commit()
 
-    return {"note_id": new_note_id}
+    return new_note_data
 
 
 ## NEED TO DO UPDATE Individual NOTES
 @app.patch("/notes/{note_id}")
-async def update_note():
-    pass
+async def update_note(
+    note_id: str,
+    note: Annotated[NoteCreate, Depends(as_form)],
+    user: Annotated[User, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db)],
+    in_file: UploadFile | None = None
+):
+    update_data = {}
+
+    if note.title is not None:
+        update_data["title"] = note.title
+
+    if note.text is not None:
+        update_data["content"] = note.text
+
+    existing_note = await session.scalar(
+        select(Note).where(
+            Note.id == note_id,
+            Note.user_id == user.id
+        )
+    )
+
+    if not existing_note:
+        raise HTTPException(
+            status_code=404,
+            detail="Note not found"
+        )
+
+    if update_data:
+        await session.execute(
+            update(Note)
+            .where(
+                Note.id == note_id,
+                Note.user_id == user.id
+            )
+            .values(**update_data)
+        )
+
+    if in_file:
+        file_data = await save_file(in_file)
+
+        new_file = File(
+            note_id=note_id,
+            file_name=in_file.filename,
+            file_url=file_data["file_url"],
+            file_size=file_data["file_size"],
+        )
+
+        session.add(new_file)
+
+    await session.commit()
+
+    return {"message": "Note updated successfully"}
 
 
 ## BULK DELETE NOTES

@@ -5,7 +5,7 @@ from fastapi import Form
 
 
 class NoteBase(BaseModel):
-    title: str
+    title: str | None = None
     created_at: datetime
 
 
