@@ -8,9 +8,11 @@ files_dir = "files"
 
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg"}
 data = {}
+MAX_SIZE = 10 * 1024 * 1024
+size = 0
 
 async def save_file(in_file):
-    extension = in_file.filename.split(".")[-1]
+    extension = in_file.filename.split(".")[-1].lower()
     if extension not in ALLOWED_EXTENSIONS:
         raise HTTPException(status_code=400, detail="Invalid file extension")
 

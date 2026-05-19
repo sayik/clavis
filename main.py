@@ -7,26 +7,40 @@ from typing import Annotated
 
 from utils.hash_password import hash_password
 from utils.file_handling import save_file
+from utils.presigned_url import create_presigned_url
 from schemas.core import NoteBase, NoteCreate, as_form, BulkDeleteIDs
 from schemas.auth import UserOut, UserSignup
 from auth import get_current_user
 from db.init_db import get_db
 from db.model_notes import User, Note, File
+from schemas.responses import (
+    NoteResponse,
+    NoteCreateResponse,
+    MessageResponse,
+    SignupResponse,
+)
 
 
 app = FastAPI()
 
 ##TODO
 """
-- FileResponse
-- Dockerize !
-- Add Database 
-- Could you make it so that adding a new note uses a single endpoint, regardless of the "type" (text vs. file)?
-- Add auth as a requirement for all the endpoints. Can you limit it so each user only can only interact with their own notes?
-- Separate your app into multiple files, e.g. schemas, routes, data access layer, ...
-- Delete note
-- don't handle hashing
+- FileResponse ✔️
+- Dockerize ! ✔️
+- Add Database ✔️
+- Could you make it so that adding a new note uses a single endpoint, regardless of the "type" (text vs. file)? ✔️
+- Add auth as a requirement for all the endpoints. Can you limit it so each user only can only interact with their own notes? ✔️
+- Separate your app into multiple files, e.g. schemas, routes, data access layer, ... ✔️
+- Delete note ✔️
+- don't handle hashing ✔️
+- incoming file size handling - by the time uploadfile passes the data to route function it's already in 
+    the temp storage. This needs to be handled at the reverse proxy
 - tests
+- Isolate user ie  user access + Bytecode + multistage build in dockerfile
+- Frontend
+- logging 
+- Pre-commit
+- s3 presigned for images
 
 --Done--- re: #3, Most RESTful APIs will have URLs like
         POST /notes (create)
@@ -37,9 +51,10 @@ app = FastAPI()
 
         Additional note-specific "actions" usually take the form of
         POST /notes/{note_id}/action-name
+----> Uniform design of routes and endpoints
 
 --Done--- Ah I see it now, I'll make the get_current_user return the User object instead of username itself. So the route functions can directly access user id and other information.
------ Will do response_models.
+--Done--- Will do response_models.
 
 ----- re: #4 yes, OAuth2 is a great way to let people log in with accounts they already have
 ----- Cascade delete images/audio that was deleted from db
@@ -51,7 +66,7 @@ async def health():
     return "Server running"
 
 
-@app.get("/notes/", response_model=None)
+@app.get("/notes/", response_model=list[NoteResponse])
 async def request_all_notes(
     user: Annotated[User, Depends(get_current_user)],
     session: Annotated[AsyncSession, Depends(get_db)],
@@ -61,26 +76,10 @@ async def request_all_notes(
     )
     notes = result.scalars().all()
 
-    return [
-        {
-            "id": note.id,
-            "title": note.title,
-            "content": note.content,
-            "created_at": note.created_at,
-            "files": [
-                {
-                    "file_name": f.file_name,
-                    "file_size": f.file_size,
-                    "file_url": f.file_url,
-                }
-                for f in note.files
-            ],
-        }
-        for note in notes
-    ]
+    return notes
 
 
-@app.get("/notes/{note_id}", response_model=None)
+@app.get("/notes/{note_id}", response_model=NoteResponse)
 async def specific_note(
     note_id: str,
     user: Annotated[User, Depends(get_current_user)],
@@ -100,34 +99,24 @@ async def specific_note(
     """
     need a way to respond to file request
     """
-    return {
-        "id": note.id,
-        "title": note.title,
-        "content": note.content,
-        "created_at": note.created_at,
-        "files": [
-            {
-                "file_name": f.file_name,
-                "file_size": f.file_size,
-                "file_url": f.file_url,
-            }
-            for f in note.files
-        ],
-    }
+    return note
 
 
 ## SEND FILES
-@app.get("/notes/{file_id}", response_model=None)
+@app.get("/notes/files/{file_id}", response_model=None)
 async def file_response(
     file_id: str,
     user: Annotated[User, Depends(get_current_user)],
     session: Annotated[AsyncSession, Depends(get_db)],
 ):
     result = await session.execute(select(File).where(File.id == file_id))
-    return file_response(result.file)
+    # return file_response(result.file)
+    # result is the filename with uuid, now send the uuid(filename), method and needed arguments for pre-signed s3 bucket
+    download_link = create_presigned_url(object_name=result, method="GET", expiration=4600)
 
 
-@app.post("/signup/", response_model=None)
+
+@app.post("/signup/", response_model=SignupResponse)
 async def signup(
     session: Annotated[AsyncSession, Depends(get_db)],
     user: Annotated[UserSignup, Form()],
@@ -151,7 +140,7 @@ async def signup(
     new_user = User(email=user.email, name=user.username, password_hash=password_hash)
     session.add(new_user)
     await session.commit()
-    return {"user": user}
+    return SignupResponse(username=user.username, email=user.email)
 
 
 @app.post("/notes/", response_model=NoteBase)
@@ -173,7 +162,6 @@ async def create_note(
 
     if in_file:
         file_data = await save_file(in_file)
-        print(file_data)
 
         add_new_file = File(
             note_id=new_note.id,
@@ -190,13 +178,13 @@ async def create_note(
 
 
 ## NEED TO DO UPDATE Individual NOTES
-@app.patch("/notes/{note_id}")
+@app.patch("/notes/{note_id}", response_model=MessageResponse)
 async def update_note(
     note_id: str,
     note: Annotated[NoteCreate, Depends(as_form)],
     user: Annotated[User, Depends(get_current_user)],
     session: Annotated[AsyncSession, Depends(get_db)],
-    in_file: UploadFile | None = None
+    in_file: UploadFile | None = None,
 ):
     update_data = {}
 
@@ -207,25 +195,16 @@ async def update_note(
         update_data["content"] = note.text
 
     existing_note = await session.scalar(
-        select(Note).where(
-            Note.id == note_id,
-            Note.user_id == user.id
-        )
+        select(Note).where(Note.id == note_id, Note.user_id == user.id)
     )
 
     if not existing_note:
-        raise HTTPException(
-            status_code=404,
-            detail="Note not found"
-        )
+        raise HTTPException(status_code=404, detail="Note not found")
 
     if update_data:
         await session.execute(
             update(Note)
-            .where(
-                Note.id == note_id,
-                Note.user_id == user.id
-            )
+            .where(Note.id == note_id, Note.user_id == user.id)
             .values(**update_data)
         )
 
@@ -243,11 +222,11 @@ async def update_note(
 
     await session.commit()
 
-    return {"message": "Note updated successfully"}
+    return MessageResponse(message="Note updated successfully")
 
 
-## BULK DELETE NOTES
-@app.delete("/notes/", response_model=None)
+## Bulk delete notes
+@app.delete("/notes/", response_model=MessageResponse)
 async def bulk_delete(
     data: BulkDeleteIDs,
     user: Annotated[User, Depends(get_current_user)],
@@ -271,11 +250,11 @@ async def bulk_delete(
 
     await session.commit()
 
-    return {"message": "notes deleted"}
+    return MessageResponse(message="Notes deleted")
 
 
 ## individual delete
-@app.delete("/notes/{note_id}", response_model=None)
+@app.delete("/notes/{note_id}", response_model=MessageResponse)
 async def remove_item(
     note_id: str,
     user: Annotated[User, Depends(get_current_user)],
@@ -286,4 +265,4 @@ async def remove_item(
     )
     await session.commit()
 
-    return {"message": "Note deleted"}
+    return MessageResponse(message="Note deleted")
