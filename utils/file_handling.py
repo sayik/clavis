@@ -1,7 +1,5 @@
 from fastapi import HTTPException
-import aiofiles
 import uuid
-import os
 
 
 files_dir = "files"
@@ -11,18 +9,16 @@ data = {}
 MAX_SIZE = 10 * 1024 * 1024
 size = 0
 
-async def save_file(in_file):
+def save_file(in_file):
     extension = in_file.filename.split(".")[-1].lower()
     if extension not in ALLOWED_EXTENSIONS:
         raise HTTPException(status_code=400, detail="Invalid file extension")
 
     unique_id = uuid.uuid4().hex
-    file_path = os.path.join(files_dir, f"{unique_id}.{extension}")
+    unique_file_name = f"{unique_id}.{extension}"
 
-    async with aiofiles.open(file_path, "wb") as out_file:
-        content = await in_file.read()
-        await out_file.write(content)
-
-    data["file_url"] = file_path
-    data["file_size"] = len(content)
+    data["file_url"] = "Stored in cloud s3"
+    data["unique_file_name"] = unique_file_name
+    """
+    Needs to send file name to db and pre-signed url"""
     return data

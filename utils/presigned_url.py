@@ -1,6 +1,5 @@
 import boto3
 from botocore.exceptions import ClientError
-from botocore.config import Config
 import os
 from dotenv import load_dotenv
 
@@ -45,14 +44,24 @@ def create_presigned_url(
             )
         except ClientError as e:
             return None
+    elif method == "DELETE":
+        try:
+            response = s3_client.generate_presigned_url(
+                "put_object",
+                Params={
+                    "Bucket": os.getenv("AWS_BUCKET_NAME"),
+                    "Key": object_name,
+                },
+                ExpiresIn=expiration,
+            )
+        except ClientError as e:
+            return None
 
-    print(response)
     return response
 
 
 if __name__ == "__main__":
     create_presigned_url(
-        object_name="note_files/bdrack.png",
-        bucket_name="fastapinotes",
+        file_name="srtgdsfgdsfgdsfsdfg",
         method="PUT",
     )

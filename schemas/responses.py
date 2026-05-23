@@ -4,8 +4,8 @@ from datetime import datetime
 
 class FileResponseSchema(BaseModel):
     file_name: str
-    file_size: int
     file_url: str
+    file_size: int | None = None
 
     #here db object can be directly passed to the Model
     model_config = ConfigDict(from_attributes=True)
@@ -25,12 +25,19 @@ class NoteCreateResponse(BaseModel):
     id: str
     title: str
     created_at: datetime
+    pre_signed_url: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
 
 class MessageResponse(BaseModel):
     message: str
+
+class UpdateResponse(MessageResponse):
+    pre_signed_url: str | None = None
+
+class DeleteNoteResponse(MessageResponse):
+    details: dict
 
 
 class SignupResponse(BaseModel):
