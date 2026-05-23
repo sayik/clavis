@@ -36,31 +36,14 @@ app = FastAPI()
 - Separate your app into multiple files, e.g. schemas, routes, data access layer, ... ✔️
 - Delete note ✔️
 - don't handle hashing ✔️
-- incoming file size handling - by the time uploadfile passes the data to route function it's already in 
-    the temp storage. This needs to be handled at the reverse proxy
-- tests
+- incoming file size handling
+- tests ✔️
 - Isolate user ie  user access + Bytecode + multistage build in dockerfile
 - Frontend
 - logging 
 - Pre-commit
-- s3 presigned for images
+- s3 presigned for images ✔️
 
---Done--- re: #3, Most RESTful APIs will have URLs like
-        POST /notes (create)
-        GET /notes (list)
-        GET /notes/{note_id} (detail)
-        PUT/PATCH /notes/{note_id} (update)
-        DELETE /notes/{note_id} (delete)
-
-        Additional note-specific "actions" usually take the form of
-        POST /notes/{note_id}/action-name
-----> Uniform design of routes and endpoints
-
---Done--- Ah I see it now, I'll make the get_current_user return the User object instead of username itself. So the route functions can directly access user id and other information.
---Done--- Will do response_models.
-
------ re: #4 yes, OAuth2 is a great way to let people log in with accounts they already have
------ Cascade delete images/audio that was deleted from db
 """
 
 
