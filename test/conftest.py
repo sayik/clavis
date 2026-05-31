@@ -21,7 +21,7 @@ engine = create_async_engine(
     poolclass=StaticPool,
 )
 
-TestingSessionLocal = async_sessionmaker(
+TestingSession = async_sessionmaker(
     bind=engine,
     class_=AsyncSession,
     expire_on_commit=False,
@@ -41,7 +41,7 @@ async def setup_database():
 
 
 async def override_get_db():
-    async with TestingSessionLocal() as session:
+    async with TestingSession() as session:
         yield session
 
 
