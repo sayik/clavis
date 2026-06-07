@@ -64,3 +64,18 @@ def client():
         yield client
 
     app.dependency_overrides.clear()
+
+@pytest_asyncio.fixture
+async def sample_note():
+    async with TestingSession() as session:
+        note = Note(
+            id="note1",
+            title="Test Note",
+            content="Hello",
+            user_id=1,
+        )
+
+        session.add(note)
+        await session.commit()
+
+    yield note
