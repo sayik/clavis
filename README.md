@@ -46,6 +46,77 @@ The platform follows a modern cloud-native architecture:
 
 Clavis aims to become a personal knowledge cloud where notes, files, schedules, and AI assistance converge into a single system. Rather than functioning as a simple note repository, it serves as an intelligent workspace that helps users capture information, organize their digital assets, and transform ideas into actions.
 
+# Running the Project with Docker
+
+## Prerequisites
+
+Install Docker on your machine before continuing.
+
+Verify that Docker is installed:
+
+```bash
+docker --version
+```
+
+## Clone the Repository
+
+```bash
+git clone <https://github.com/sayik/clavis>
+cd <clavis>
+```
+
+## Build the Docker Image
+
+From the project root directory, run:
+
+```bash
+docker build -t super_notes-api .
+```
+
+Docker will download the required dependencies and build an image named `super_notes-api`.
+
+## Run the Application
+
+Start the container:
+
+```bash
+docker run -p 8000:80 super_notes-api
+```
+
+The API will be available at:
+
+```text
+http://localhost:8000
+```
+
+Swagger documentation:
+
+```text
+http://localhost:8000/docs
+```
+
+ReDoc documentation:
+
+```text
+http://localhost:8000/redoc
+```
+
+## Stop the Application
+
+Press `Ctrl+C` in the terminal where the container is running.
+
+Alternatively:
+
+```bash
+docker ps
+docker stop <container-id>
+```
+
+## Notes
+
+This project currently uses SQLite as its database. The database file is packaged inside the container. Data persistence across container recreation is not currently configured.
+
+
 ## Status
 
 Clavis is being developed at a rapid pace, with new features added regularly. A public online release is planned soon, bringing AI-assisted productivity tools, personal knowledge management, and secure cloud storage into a unified platform.
