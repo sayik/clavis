@@ -1,10 +1,11 @@
 from fastapi import FastAPI, UploadFile, HTTPException, status, Depends, Form, Body
-from fastapi.responses import FileResponse
+from fastapi.responses import JSONResponse
 from fastapi.concurrency import run_in_threadpool
 from sqlalchemy import select, delete, update
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Annotated
+from datetime import datetime
 
 from utils.hash_password import hash_password
 from utils.file_handling import save_file
@@ -58,8 +59,15 @@ async def request_all_notes(
     session: Annotated[AsyncSession, Depends(get_db)],
 ):
     result = await session.execute(
-        select(Note).where(Note.user_id == user.id).options(selectinload(Note.files))
+        select(Note)
+        .where(
+            Note.user_id == user.id,
+            Note.deleted_at.is_(None),
+            Note.archived_at.is_(None),
+        )
+        .options(selectinload(Note.files))
     )
+    # needs pagination
     notes = result.scalars().all()
 
     return notes
@@ -74,7 +82,11 @@ async def specific_note(
 ):
     result = await session.execute(
         select(Note)
-        .where(Note.id == note_id, Note.user_id == user.id)
+        .where(
+            Note.id == note_id,
+            Note.deleted_at.is_(None),
+            Note.user_id == user.id,
+        )
         .options(selectinload(Note.files))
     )
     note = result.scalar_one_or_none()
@@ -112,8 +124,13 @@ async def signup(
     result = await session.execute(select(User).where(User.email == user.email))
     existing_email = result.scalar_one_or_none()
     if existing_email:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered"
+        return JSONResponse(
+            status_code=409,
+            content={
+                "error": "email_exists",
+                "email": user.email,
+                "redirect_to": "/login",
+            },
         )
 
     result = await session.execute(select(User).where(User.name == user.username))
@@ -250,7 +267,7 @@ async def bulk_delete(
         raise HTTPException(status_code=404, detail="Matching notes not found")
 
     remove_files = await session.execute(
-        select(File.file_name).where( File.note_id.in_(data.removable))
+        select(File.file_name).where(File.note_id.in_(data.removable))
     )
 
     items: list[str] = remove_files.scalars().all()
@@ -297,3 +314,96 @@ async def remove_item(
     )
 
     return DeleteNoteResponse(message="file deleted", details=result)
+
+
+"""Permanent delete, archive, recycle bin
+Deletion could fail midway if db call fails, create a table for stuffs to be deleted"""
+
+
+@app.patch("/notes/{note_id}/archive")
+async def archive_note(
+    note_id: str,
+    user: Annotated[User, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db)],
+):
+    note = await session.scalar(
+        select(Note).where(
+            Note.id == note_id,
+            Note.user_id == user.id,
+            Note.deleted_at.is_(None),
+        )
+    )
+
+    if not note:
+        raise HTTPException(404, "Note not found")
+
+    note.archived_at = datetime.utcnow()
+
+    await session.commit()
+
+    return {"message": "Note archived"}
+
+
+@app.delete("/notes/{note_id}")
+async def move_to_recycle_bin(
+    note_id: str,
+    user: Annotated[User, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db)],
+):
+    note = await session.scalar(
+        select(Note).where(
+            Note.id == note_id,
+            Note.user_id == user.id,
+            Note.deleted_at.is_(None),
+        )
+    )
+
+    if not note:
+        raise HTTPException(404, "Note not found")
+
+    note.deleted_at = datetime.utcnow()
+
+    await session.commit()
+
+    return {"message": "Moved to recycle bin"}
+
+
+@app.get("/recycle-bin", response_model=list[NoteResponse])
+async def recycle_bin(
+    user: Annotated[User, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db)],
+):
+    result = await session.execute(
+        select(Note)
+        .where(
+            Note.user_id == user.id,
+            Note.deleted_at.is_not(None),
+        )
+        .options(selectinload(Note.files))
+    )
+
+    return result.scalars().all()
+
+
+@app.post("/notes/{note_id}/restore")
+async def restore_note(
+    note_id: str,
+    user: Annotated[User, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db)],
+):
+    note = await session.scalar(
+        select(Note).where(
+            Note.id == note_id,
+            Note.user_id == user.id,
+            Note.deleted_at.is_not(None),
+        )
+    )
+
+    if not note:
+        raise HTTPException(404, "Deleted note not found")
+
+    note.deleted_at = None
+
+    await session.commit()
+
+    return {"message": "Note restored"}

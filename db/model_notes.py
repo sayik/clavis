@@ -27,10 +27,12 @@ class Note(Base):
     title: Mapped[str] = mapped_column(String(60), nullable=False)
     content: Mapped[str] = mapped_column(String, nullable=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, server_default=func.now()
-    ) 
-    updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now()
+    )
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     users: Mapped["User"] = relationship(back_populates="notes")
     files: Mapped[list["File"]] = relationship(
         back_populates="note", cascade="all, delete-orphan"
@@ -50,3 +52,22 @@ class File(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     note: Mapped["Note"] = relationship(back_populates="files")
+
+
+class PendingDeletion(Base):
+    __tablename__ = "pending_deletions"
+
+    id: Mapped[str] = mapped_column(
+        String, primary_key=True, default=lambda: str(uuid.uuid4())
+    )
+
+    note_id: Mapped[str] = mapped_column(String, nullable=False)
+    file_name: Mapped[str] = mapped_column(String)
+
+    status: Mapped[str] = mapped_column(String(20), default="pending")  # pending, processing, completed, failed
+
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    error_message: Mapped[str | None] = mapped_column(
+        String(500),
+        nullable=True,
+    )
