@@ -7,7 +7,6 @@ services:
       - "8000:8000"
     depends_on:
       - db
-    command: ["executable", "arg"]
   db:
     image: postgres:17
     environment:
@@ -17,5 +16,5 @@ services:
     volumes:
       - db_data:/var/lib/postgresql/data
 
-  volumes:
+volumes:
     db_data:
