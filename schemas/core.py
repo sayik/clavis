@@ -12,6 +12,10 @@ class NoteBase(BaseModel):
 class NoteCreate(NoteBase):
     text: str | None = None
 
+class NoteDelete(BaseModel):
+    pass
+
+
 
 def as_form(
     title: Annotated[str, Form()],

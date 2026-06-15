@@ -107,13 +107,19 @@ async def file_response(
     user: Annotated[User, Depends(get_current_user)],
     session: Annotated[AsyncSession, Depends(get_db)],
 ):
-    if user and file_name:
-        download_link = create_presigned_url(
-            file_name=file_name, method="GET", expiration=4600
-        )
-        return {"download_link": download_link}
-    else:
+    # if user and file_name:
+    #     download_link = create_presigned_url(
+    #         file_name=file_name, method="GET", expiration=4600
+    #     )
+    #     return {"download_link": download_link}
+    # else:
+    #     raise HTTPException(status_code=400, detail="unauthorized to access")
+    """I tend to use this sort of "early return" for various special cases as well as validation,
+    so that the main part of the function can know that those cases have been handled."""
+    if not (user and file_name):
         raise HTTPException(status_code=400, detail="unauthorized to access")
+    download_link = create_presigned_url(file_name=file_name, method="GET", expiration=4600)
+    return {"download_link": download_link}
 
 
 @app.post("/signup/", response_model=SignupResponse)
