@@ -1,0 +1,41 @@
+services:
+  app:
+    env_file:
+      - .env
+    build: .
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+    restart: unless-stopped
+    command: ["executable", "arg"]
+    volumes:
+      - .:/app
+    # develop is for development process and to avoid constant interaction with cli by compose build and up.
+    develop:
+      watch:
+        - action: sync
+          path: .
+          target: /app
+          ignore:
+            - .venv/
+
+        - action: rebuild
+          path: pyproject.toml
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U adminuser"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+
+volumes:
+    db_data:

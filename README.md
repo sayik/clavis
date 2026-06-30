@@ -1,6 +1,6 @@
 # Clavis
 
-**Clavis** is an intelligent personal knowledge and productivity platform that combines secure cloud storage, note management, and AI-assisted organization into a single backend system.
+**Clavis** is an intelligent personal knowledge and productivity management platform that combines secure cloud storage, note management, and AI-assisted organization into a single backend system.
 
 Designed for individuals who manage ideas, documents, tasks, and events across multiple devices, Clavis acts as a private digital workspace where information can be captured, stored, retrieved, and transformed into actionable plans.
 

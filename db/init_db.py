@@ -6,7 +6,7 @@ from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from .model_notes import Base, User, Note, File
 
-DB_URI = "sqlite+aiosqlite:///./notes.db"
+DB_URI = "postgresql+asyncpg://adminuser:adminadmin@db:5432/adminuser"
 
 async_engine = create_async_engine(
     DB_URI,
