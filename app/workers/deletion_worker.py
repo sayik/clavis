@@ -12,11 +12,8 @@ from utils.s3_delete_object import delete_objects
 async def process_pending_deletions():
 
     async with AsyncSessionLocal() as session:
-
         result = await session.execute(
-            select(PendingDeletion).where(
-                PendingDeletion.status == "pending"
-            )
+            select(PendingDeletion).where(PendingDeletion.status == "pending")
         )
 
         pending = result.scalars().all()
@@ -25,7 +22,6 @@ async def process_pending_deletions():
             return
 
         for item in pending:
-
             try:
                 item.status = "processing"
                 await session.commit()
@@ -39,15 +35,12 @@ async def process_pending_deletions():
                 print(f"Deleted {item.file_name}")
 
             except Exception as exc:
-
                 item.status = "failed"
                 item.error_message = str(exc)
 
                 await session.commit()
 
-                print(
-                    f"Failed deleting {item.file_name}: {exc}"
-                )
+                print(f"Failed deleting {item.file_name}: {exc}")
 
 
 async def main():
@@ -55,7 +48,6 @@ async def main():
     print("Deletion worker started")
 
     while True:
-
         try:
             await process_pending_deletions()
 
@@ -67,4 +59,3 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-    

@@ -4,9 +4,9 @@ from typing import Annotated
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
-from db.init_db import get_db
-from db.model_notes import User
-from utils.hash_password import verify_password
+from app.db.init_db import get_db
+from app.db.model_notes import User
+from app.utils.hash_password import verify_password
 
 security = HTTPBasic()
 

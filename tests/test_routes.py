@@ -3,7 +3,7 @@ import io
 import pytest
 from sqlalchemy.orm import select
 
-from db.model_notes import Note, User, File, PendingDeletion
+from app.db.model_notes import Note, User, File, PendingDeletion
 from conftest import TestingSession
 from datetime import datetime
 
