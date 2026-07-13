@@ -1,10 +1,10 @@
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, StaticPool
 from sqlalchemy.orm import sessionmaker
-from main import app
-from auth import get_current_user
-from db.model_notes import User, Base, File, Note
-from db.init_db import get_db
+from app.main import app
+from app.auth import get_current_user
+from app.db.model_notes import User, Base, File, Note
+from app.db.init_db import get_db
 from conftest import client
 
 def test_health():

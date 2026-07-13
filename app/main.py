@@ -7,16 +7,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Annotated
 from datetime import datetime
 
-from utils.hash_password import hash_password
-from utils.file_handling import save_file
-from utils.presigned_url import create_presigned_url
-from utils.s3_delete_object import delete_objects
-from schemas.core import NoteBase, NoteCreate, as_form, BulkDeleteIDs
-from schemas.auth import UserOut, UserSignup
-from auth import get_current_user
-from db.init_db import get_db
-from db.model_notes import User, Note, File
-from schemas.responses import (
+from app.utils.hash_password import hash_password
+from app.utils.file_handling import save_file
+from app.utils.presigned_url import create_presigned_url
+from app.utils.s3_delete_object import delete_objects
+from app.schemas.core import NoteBase, NoteCreate, as_form, BulkDeleteIDs
+from app.schemas.auth import UserOut, UserSignup
+from app.auth import get_current_user
+from app.db.init_db import get_db
+from app.db.model_notes import User, Note, File
+from app.schemas.responses import (
     NoteResponse,
     NoteCreateResponse,
     MessageResponse,
