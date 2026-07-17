@@ -1,15 +1,18 @@
 from fastapi import FastAPI, UploadFile, HTTPException, status, Depends, Form, Body
 from fastapi.responses import JSONResponse
 from fastapi.concurrency import run_in_threadpool
+from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy import select, delete, update
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Annotated
 from datetime import datetime
+from starlette.middleware.cors import CORSMiddleware
 
 from app.utils.hash_password import hash_password
 from app.utils.file_handling import save_file
 from app.utils.presigned_url import create_presigned_url
+from app.utils.settings import settings
 from app.utils.s3_delete_object import delete_objects
 from app.schemas.core import NoteBase, NoteCreate, as_form, BulkDeleteIDs
 from app.schemas.auth import UserOut, UserSignup
@@ -27,6 +30,16 @@ from app.schemas.responses import (
 
 app = FastAPI()
 
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.CORS_ORIGINS,
+    allow_origin_regex=settings.CORS_ORIGINS_REGEX,
+    allow_credentials=True,
+    allow_methods=("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"),
+    allow_headers=settings.CORS_HEADERS,
+)
+
 ##TODO
 """
 - FileResponse ✔️
@@ -37,21 +50,70 @@ app = FastAPI()
 - Separate your app into multiple files, e.g. schemas, routes, data access layer, ... ✔️
 - Delete note ✔️
 - don't handle hashing ✔️
-- incoming file size handling
+- incoming file size handling 
 - tests ✔️
 - Isolate user ie  user access + Bytecode + multistage build in dockerfile
 - Frontend
 - logging 
-- Pre-commit
+- ADD AI feature 
+- Pre-commit - ✔️
 - s3 presigned for images ✔️
 
 """
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 
 @app.get("/health")
-async def health():
-    return "Server running"
+async def health(token: Annotated[str, Depends(oauth2_scheme)]):
+    return {"token": token}
 
+
+"""
+
+POST /auth/password/forgot
+POST /auth/password/reset
+
+POST /auth/verify-email
+POST /auth/resend-verification
+"""
+
+
+@app.get("/auth/me", response_model=UserOut)
+async def me(
+    user: Annotated[User, Depends(get_current_user)],
+):
+    return user
+
+
+"""@app.post("/auth/register", response_model=SignupResponse)
+async def register():
+    pass
+
+
+@app.post("/auth/login", response_model=LoginResponse)
+async def login():
+    pass
+
+
+@app.post("/auth/refresh", response_model=RefreshResponse)
+async def refresh():
+    pass
+
+
+@app.post("/auth/logout", response_model=LogoutResponse)
+async def logout():
+    pass
+
+
+@app.post("/auth/verify-email", response_model=VerifyemailResponse)
+async def verify_email():
+    pass
+
+
+@app.post("/auth/resend-verification", response_model=ResendverificationResponse)
+async def resend_verification():
+    pass
+"""
 
 @app.get("/notes/", response_model=list[NoteResponse])
 async def request_all_notes(
@@ -118,7 +180,9 @@ async def file_response(
     so that the main part of the function can know that those cases have been handled."""
     if not (user and file_name):
         raise HTTPException(status_code=400, detail="unauthorized to access")
-    download_link = create_presigned_url(file_name=file_name, method="GET", expiration=4600)
+    download_link = create_presigned_url(
+        file_name=file_name, method="GET", expiration=4600
+    )
     return {"download_link": download_link}
 
 
