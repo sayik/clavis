@@ -9,6 +9,7 @@ from typing import Annotated
 from datetime import datetime
 from starlette.middleware.cors import CORSMiddleware
 
+from app.exception import BadRequestException
 from app.utils.hash_password import hash_password
 from app.utils.file_handling import save_file
 from app.utils.presigned_url import create_presigned_url
@@ -81,15 +82,46 @@ POST /auth/resend-verification
 @app.get("/auth/me", response_model=UserOut)
 async def me(
     user: Annotated[User, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db)],
 ):
+        # here get current user can check for valid token or return exception 
     return user
 
 
-"""@app.post("/auth/register", response_model=SignupResponse)
-async def register():
-    pass
+@app.post("/auth/register", response_model=SignupResponse)
+async def register(session: Annotated[AsyncSession, Depends(get_db)], user: Annotated[UserSignup, Form()]):
+    #check if credentials already in the db
+    # store username and hashed password to db
+    # create temporary token 
+    # send email to the person to verify it
+    # send MFA phone code
+    result = await session.execute(select(User).where(User.email == user.email))
+    existing = result.scalar_one_or_none()
+    if existing:
+        return JSONResponse(
+            status_code=409,
+            content={
+                "error": "email_exists",
+                "email": user.email,
+                "redirect_to": "/login",
+            },
+        )
+    result = await session.execute(select(User).where(User.name == user.username))
+    existing_username = result.scalar_one_or_none()
+
+    if existing_username:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Username already taken"
+        )
+
+    password_hash = hash_password(user.password)
+    new_user = User(email=user.email, name=user.username, password_hash=password_hash)
+    session.add(new_user)
+    await session.commit()
+    return SignupResponse(username=user.username, email=user.email)
 
 
+"""
 @app.post("/auth/login", response_model=LoginResponse)
 async def login():
     pass
