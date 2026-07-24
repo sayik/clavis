@@ -16,6 +16,16 @@ Currently commented out because signup will be handled by my code
 but the login is handled by fastapi HTTP Basic authentication.
 User data will be saved to database with signup endpoint
 """
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+
+class TokenData(BaseModel):
+    username: str | None = None
+
+
 class Login(BaseModel):
     email: EmailStr
     password: str
