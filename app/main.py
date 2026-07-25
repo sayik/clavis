@@ -1,7 +1,7 @@
 from fastapi import FastAPI, UploadFile, HTTPException, status, Depends, Form, Body
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.concurrency import run_in_threadpool
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy import select, delete, update
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,16 +10,17 @@ from datetime import datetime
 from starlette.middleware.cors import CORSMiddleware
 
 from app.exception import BadRequestException
-from app.utils.hash_password import hash_password
+from app.auth.password_handler import get_password_hash, verify_password
+from app.auth.token_handler import create_refresh_token, create_access_token
 from app.utils.file_handling import save_file
 from app.utils.presigned_url import create_presigned_url
 from app.utils.settings import settings
 from app.utils.s3_delete_object import delete_objects
 from app.schemas.core import NoteBase, NoteCreate, as_form, BulkDeleteIDs
 from app.schemas.auth import UserOut, UserSignup
-from app.auth import get_current_user
+from app.auth.email_handler import generate_email_verification_link, send_verification_email
 from app.db.init_db import get_db
-from app.db.model_notes import User, Note, File
+from app.db.models import User, Note, File, EmailVerificationToken
 from app.schemas.responses import (
     NoteResponse,
     NoteCreateResponse,
@@ -27,6 +28,7 @@ from app.schemas.responses import (
     SignupResponse,
     UpdateResponse,
     DeleteNoteResponse,
+    LoginResponse,
 )
 
 app = FastAPI()
@@ -88,15 +90,12 @@ async def me(
     return user
 
 
-@app.post("/auth/register", response_model=SignupResponse)
+
+@app.post("/auth/signup", response_model=SignupResponse)
 async def register(session: Annotated[AsyncSession, Depends(get_db)], user: Annotated[UserSignup, Form()]):
-    #check if credentials already in the db
-    # store username and hashed password to db
-    # create temporary token 
-    # send email to the person to verify it
-    # send MFA phone code
     result = await session.execute(select(User).where(User.email == user.email))
     existing = result.scalar_one_or_none()
+    
     if existing:
         return JSONResponse(
             status_code=409,
@@ -106,26 +105,110 @@ async def register(session: Annotated[AsyncSession, Depends(get_db)], user: Anno
                 "redirect_to": "/login",
             },
         )
-    result = await session.execute(select(User).where(User.name == user.username))
-    existing_username = result.scalar_one_or_none()
 
-    if existing_username:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Username already taken"
-        )
+    if existing.name:
+        raise BadRequestException(detail=f"Username {existing.name} already taken")
 
-    password_hash = hash_password(user.password)
+    password_hash = get_password_hash(user.password)
     new_user = User(email=user.email, name=user.username, password_hash=password_hash)
     session.add(new_user)
+    
+
+    verification = generate_email_verification_link(settings.FRONTEND_URL)
+    
+    # Store only the hash
+    verification_token = EmailVerificationToken(
+        user_id=new_user.id,
+        token_hash=verification.token_hash,
+    )
+
+    session.add(verification_token)
+
+    # Email the link
+    await send_verification_email(
+        new_user.email,
+        verification.verification_link,
+        )
     await session.commit()
     return SignupResponse(username=user.username, email=user.email)
 
 
-"""
-@app.post("/auth/login", response_model=LoginResponse)
-async def login():
-    pass
+@app.get("/auth/verify-email")
+async def verify_email(
+    token: str,
+    session: AsyncSession = Depends(get_db),
+):
+    token_hash = get_password_hash(token)
 
+    verification = await session.scalar(
+        select(EmailVerificationToken).where(
+            EmailVerificationToken.token_hash == token_hash
+        )
+    )
+
+    if verification is None:
+        raise BadRequestException(detail="Invalid token")
+
+    if verification.expires_at < datetime.now():
+        await session.delete(verification)
+        await session.commit()
+
+        raise BadRequestException("Invalid verification token")
+
+    user = await session.get(User, verification.user_id)
+
+    if user is None:
+        raise BadRequestException(detail="User not found")
+    user.email_verified = True
+
+    # Remove the token so it cannot be reused
+    await session.delete(verification)
+
+    await session.commit()
+
+    return RedirectResponse(
+        url=f"{settings.FRONTEND_URL}/login?verified=true",
+        status_code=302,
+    )   
+
+
+
+@app.post("/auth/login", response_model=LoginResponse)
+async def login(
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+    session: Annotated[AsyncSession, Depends(get_db)],
+) -> LoginResponse:
+    user = await session.scalar(
+        select(User).where(User.email == form_data.username)
+    )
+
+    if user is None:
+        raise BadRequestException(
+            detail="No account exists with this email."
+        )
+
+    if not verify_password(
+        form_data.password,
+        user.password_hash,
+    ):
+        raise BadRequestException(
+            detail="Incorrect password."
+        )
+
+    if not user.email_verified:
+        raise BadRequestException(
+            detail="Please verify your email before logging in."
+        )
+
+    access_token = create_access_token(user.id)
+    refresh_token = create_refresh_token(user.id)
+
+    return LoginResponse(
+        access_token=access_token,
+        refresh_token=refresh_token,
+    )
+
+"""
 
 @app.post("/auth/refresh", response_model=RefreshResponse)
 async def refresh():
@@ -137,9 +220,6 @@ async def logout():
     pass
 
 
-@app.post("/auth/verify-email", response_model=VerifyemailResponse)
-async def verify_email():
-    pass
 
 
 @app.post("/auth/resend-verification", response_model=ResendverificationResponse)

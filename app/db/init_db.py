@@ -4,7 +4,7 @@ from fastapi import Depends
 
 # from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from .model_notes import Base, User, Note, File
+from .models import Base, User, Note, File
 
 DB_URI = "postgresql+asyncpg://adminuser:adminadmin@db:5432/adminuser"
 
