@@ -7,7 +7,7 @@ class FileResponseSchema(BaseModel):
     file_url: str
     file_size: int | None = None
 
-    #here db object can be directly passed to the Model
+    # here db object can be directly passed to the Model
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -33,8 +33,10 @@ class NoteCreateResponse(BaseModel):
 class MessageResponse(BaseModel):
     message: str
 
+
 class UpdateResponse(MessageResponse):
     pre_signed_url: str | None = None
+
 
 class DeleteNoteResponse(MessageResponse):
     details: dict
@@ -43,3 +45,9 @@ class DeleteNoteResponse(MessageResponse):
 class SignupResponse(BaseModel):
     username: str
     email: str
+
+
+class LoginResponse(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"

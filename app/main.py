@@ -1,7 +1,7 @@
 from fastapi import FastAPI, UploadFile, HTTPException, status, Depends, Form, Body
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.concurrency import run_in_threadpool
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy import select, delete, update
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,7 +10,8 @@ from datetime import datetime
 from starlette.middleware.cors import CORSMiddleware
 
 from app.exception import BadRequestException
-from app.auth.password_handler import get_password_hash
+from app.auth.password_handler import get_password_hash, verify_password
+from app.auth.token_handler import create_refresh_token, create_access_token
 from app.utils.file_handling import save_file
 from app.utils.presigned_url import create_presigned_url
 from app.utils.settings import settings
@@ -27,6 +28,7 @@ from app.schemas.responses import (
     SignupResponse,
     UpdateResponse,
     DeleteNoteResponse,
+    LoginResponse,
 )
 
 app = FastAPI()
@@ -170,11 +172,43 @@ async def verify_email(
     )   
 
 
-"""
-@app.post("/auth/login", response_model=LoginResponse)
-async def login():
-    pass
 
+@app.post("/auth/login", response_model=LoginResponse)
+async def login(
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+    session: Annotated[AsyncSession, Depends(get_db)],
+) -> LoginResponse:
+    user = await session.scalar(
+        select(User).where(User.email == form_data.username)
+    )
+
+    if user is None:
+        raise BadRequestException(
+            detail="No account exists with this email."
+        )
+
+    if not verify_password(
+        form_data.password,
+        user.password_hash,
+    ):
+        raise BadRequestException(
+            detail="Incorrect password."
+        )
+
+    if not user.email_verified:
+        raise BadRequestException(
+            detail="Please verify your email before logging in."
+        )
+
+    access_token = create_access_token(user.id)
+    refresh_token = create_refresh_token(user.id)
+
+    return LoginResponse(
+        access_token=access_token,
+        refresh_token=refresh_token,
+    )
+
+"""
 
 @app.post("/auth/refresh", response_model=RefreshResponse)
 async def refresh():
