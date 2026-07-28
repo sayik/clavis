@@ -1,14 +1,19 @@
 from password_handler import verify_password, get_password_hash
-from sqlalchemy.ext.asyncio import async_session as session
+from sqlalchemy.ext.asyncio import async_session
+from sqlalchemy import select
 
+from app.exception import UnauthorizedException, InternalServerException
+from app.db.models import User
 
-def get_user(db, username: str):
-    if username:
-        pass
-    if username in db:
-        user_dict = db[username]
-        return UserInDB(**user_dict)
+async def get_user_by_id(session: async_session, user_id: str):
+    user = await session.scalar(
+        select(User).where(User.id == user_id)
+    )
 
+    if user is None:
+        raise UnauthorizedException(detail="User not found")
+
+    return user
 
 def authenticate_user(fake_db, username: str, password: str):
     """Authenticate a user using a username and password.

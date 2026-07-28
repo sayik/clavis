@@ -10,6 +10,7 @@ from datetime import datetime
 from starlette.middleware.cors import CORSMiddleware
 
 from app.exception import BadRequestException
+from app.auth.integrate import get_current_user
 from app.auth.password_handler import get_password_hash, verify_password
 from app.auth.token_handler import (
     create_refresh_token,
@@ -17,16 +18,13 @@ from app.auth.token_handler import (
     hash_token,
     decode_token,
 )
+from app.auth.email_handler import generate_email_verification_link, send_verification_email
 from app.utils.file_handling import save_file
 from app.utils.presigned_url import create_presigned_url
 from app.utils.settings import settings
 from app.utils.s3_delete_object import delete_objects
 from app.schemas.core import NoteBase, NoteCreate, as_form, BulkDeleteIDs
 from app.schemas.auth import UserOut, UserSignup
-from app.auth.email_handler import (
-    generate_email_verification_link,
-    send_verification_email,
-)
 from app.db.init_db import get_db
 from app.db.models import (
     User,
@@ -42,6 +40,7 @@ from app.schemas.auth import (
     RefreshRequest,
     ResendVerificationRequest,
     ForgotPasswordRequest,
+    LogoutResponse,
 )
 from app.schemas.responses import (
     NoteResponse,
@@ -91,16 +90,6 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 @app.get("/health")
 async def health(token: Annotated[str, Depends(oauth2_scheme)]):
     return {"token": token}
-
-
-"""
-
-POST /auth/password/forgot
-POST /auth/password/reset
-
-POST /auth/verify-email
-POST /auth/resend-verification
-"""
 
 
 @app.get("/auth/me", response_model=UserOut)
@@ -247,10 +236,13 @@ async def login(
 
 @app.post("/auth/logout", response_model=LogoutResponse)
 async def logout(
-    logout_request: LogoutRequest,
+    user: get_current_user,
     session: Annotated[AsyncSession, Depends(get_db)],
 ) -> LogoutResponse:
-    token_hash = hash_token(logout_request.refresh_token)
+
+    # Access token must be really short TTL so logout works. Take access token and not refresh token and black list aceess and delete refresh token. 
+    
+    # find user - delete refresh token attached to it 
 
     db_token = await session.scalar(
         select(RefreshToken).where(
@@ -281,7 +273,7 @@ async def refresh(
     db_token = await session.scalar(
         select(RefreshToken).where(
             RefreshToken.token_hash == token_hash,
-            RefreshToken.device_id == request.device_id,
+            RefreshToken.device_id == refresh_request.device_id,
         )
     )
 
@@ -311,7 +303,7 @@ async def refresh(
     session.add(
         RefreshToken(
             user_id=user.id,
-            device_id=request.device_id,
+            device_id=refresh_request.device_id,
             token_hash=hash_token(refresh_token),
         )
     )
