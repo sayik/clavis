@@ -17,6 +17,8 @@ but the login is handled by fastapi HTTP Basic authentication.
 User data will be saved to database with signup endpoint
 """
 
+class MessageRespose(BaseModel):
+    message: str
 
 class Token(BaseModel):
     access_token: str
@@ -74,3 +76,9 @@ class ResetPasswordRequest(BaseModel):
 
 class LogoutResponse(BaseModel):
     message: str
+
+class ResendVerificationResponse(MessageRespose):
+    ...
+
+class RefreshResponse(TokenResponse):
+    ...

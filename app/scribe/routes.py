@@ -3,10 +3,11 @@ from fastapi.responses import JSONResponse
 from fastapi.concurrency import run_in_threadpool
 from typing import Annotated
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, delete, update
+from sqlalchemy import select, delete, update, select
 from sqlalchemy.orm import selectinload
 from datetime import datetime
 
+from ..auth.integrate import get_current_user
 from app.integration.s3_delete_object import delete_objects
 from app.exception import( 
     BadRequestException,
@@ -34,10 +35,17 @@ from app.schemas.responses import (
     UpdateResponse,
     DeleteNoteResponse,
     LoginResponse,
+    ClinicalNote,
 )
+from app.scribe.dependency import get_scribe_service
 
 
-router = APIRouter("")
+router = APIRouter(
+    prefix="/notes",
+    tags=["notes"],
+    # dependencies=[Depends(get_token_header)],
+    responses={404: {"description": "Not found"}},
+)
 
 @router.get("/notes/", response_model=list[NoteResponse])
 async def request_all_notes(
@@ -369,3 +377,21 @@ async def restore_note(
     await session.commit()
 
     return {"message": "Note restored"}
+
+
+
+@router.post("/notes/{note_id}/scribe", response_model=ClinicalNote)
+async def create_scribe(
+    user: Annotated[User, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db)],
+):
+    """So the route is to request already entered clinical data to be processed by AI, input is User_id ie clinic ID   """
+
+    """Call items from s3 and pass it onto AI service so it returns data, put all this into background task"""
+    """call db for notes and files for the AI to process"""
+
+    return await get_scribe_service.process(
+        notes=notes,
+        audio=audio,
+        images=images,
+    )

@@ -6,7 +6,7 @@ from jwt.exceptions import ExpiredSignatureError, InvalidTokenError
 from typing import Any
 
 from ..exception import UnauthorizedException
-from ..utils.settings import settings
+from ..config.settings import settings
 
 SECRET_KEY = settings.SECRET_KEY
 ALGORITHM = "HS256"

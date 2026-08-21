@@ -1,11 +1,13 @@
-from password_handler import verify_password, get_password_hash
-from sqlalchemy.ext.asyncio import async_session
+from app.auth.password_handler import verify_password, get_password_hash
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.exception import UnauthorizedException, InternalServerException
 from app.db.models import User
+from ..schemas.auth import UserSignup
+from ..exception import EmailAlreadyExists, UsernameAlreadyTaken
 
-async def get_user_by_id(session: async_session, user_id: str):
+async def get_user_by_id(session: AsyncSession, user_id: str):
     user = await session.scalar(
         select(User).where(User.id == user_id)
     )
@@ -15,7 +17,7 @@ async def get_user_by_id(session: async_session, user_id: str):
 
     return user
 
-def authenticate_user(fake_db, username: str, password: str):
+async def authenticate_user(session: AsyncSession, username: str, password: str):
     """Authenticate a user using a username and password.
 
     Retrieves the user associated with ``username`` and verifies the
@@ -37,16 +39,47 @@ def authenticate_user(fake_db, username: str, password: str):
         reduce observable timing differences between valid and invalid
         usernames.
     """
-    user = get_user(fake_db, username)
-    if not user:
-        verify_password(password, DUMMY_HASH)
-        return False
-    if not verify_password(password, user.hashed_password):
-        return False
-    return user
+    pass
 
 
-def create_user(get_db: session, username: int, email: str, unhashed_password: str) -> None:
-    ## conditionals check input data 
-    ## call password hash 
-    ## save to the db 
+async def create_user(
+    session: AsyncSession,
+    user: UserSignup,
+) -> tuple[User, str]:
+    """Create the user and verification token."""
+
+    password_hash = get_password_hash(user.password)
+
+    new_user = User(
+        email=user.email,
+        name=user.username,
+        password_hash=password_hash,
+    )
+
+    session.add(new_user)
+    await session.flush()
+
+    return new_user
+
+
+async def validate_user_signup(
+    session: AsyncSession,
+    user: UserSignup,
+) -> None:
+    """Raise an exception if the email or username is already in use."""
+
+    result = await session.execute(
+        select(User).where(User.email == user.email)
+    )
+    existing_email = result.scalar_one_or_none()
+
+    if existing_email:
+        raise EmailAlreadyExists(user.email)
+
+    result = await session.execute(
+        select(User).where(User.name == user.username)
+    )
+    existing_username = result.scalar_one_or_none()
+
+    if existing_username:
+        raise UsernameAlreadyTaken(user.username)

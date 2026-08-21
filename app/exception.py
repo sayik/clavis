@@ -55,3 +55,14 @@ class InternalServerException(HTTPException):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=detail,
         )
+
+
+class EmailAlreadyExists(Exception):
+    def __init__(self, email: str):
+        self.email = email
+
+
+class UsernameAlreadyTaken(Exception):
+    def __init__(self, username: str):
+        self.username = username
+        

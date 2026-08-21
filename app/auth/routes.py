@@ -1,8 +1,14 @@
+from datetime import datetime, UTC
+from fastapi import APIRouter, Depends, Form
+from fastapi.responses import RedirectResponse, JSONResponse
+from fastapi.security import OAuth2PasswordRequestForm
+from typing import Annotated
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
-from fastapi import APIRouter
-
-from app.exception import BadRequestException
+from app.exception import BadRequestException, EmailAlreadyExists, UsernameAlreadyTaken
 from app.auth.integrate import get_current_user
+from app.auth.user_handler import create_user, validate_user_signup
 from app.auth.password_handler import get_password_hash, verify_password
 from app.auth.token_handler import (
     create_refresh_token,
@@ -11,17 +17,12 @@ from app.auth.token_handler import (
     decode_token,
 )
 from app.auth.email_handler import generate_email_verification_link, send_verification_email
-from app.utils.file_handling import save_file
-from app.utils.presigned_url import create_presigned_url
-from app.utils.settings import settings
-from app.utils.s3_delete_object import delete_objects
-from app.schemas.core import NoteBase, NoteCreate, as_form, BulkDeleteIDs
-from app.schemas.auth import UserOut, UserSignup
+
+from app.config.settings import settings
+from app.schemas.auth import UserOut, UserSignup, ResendVerificationResponse, RefreshResponse
 from app.db.init_db import get_db
 from app.db.models import (
     User,
-    Note,
-    File,
     EmailVerificationToken,
     RefreshToken,
     PasswordResetToken,
@@ -35,22 +36,16 @@ from app.schemas.auth import (
     LogoutResponse,
 )
 from app.schemas.responses import (
-    NoteResponse,
-    NoteCreateResponse,
-    MessageResponse,
     SignupResponse,
-    UpdateResponse,
-    DeleteNoteResponse,
     LoginResponse,
-)
+)  
 
-router = APIRouter("")
+router = APIRouter()
 
 
 @router.get("/auth/me", response_model=UserOut)
 async def me(
     user: Annotated[User, Depends(get_current_user)],
-    session: Annotated[AsyncSession, Depends(get_db)],
 ):
     # here get current user can check for valid token or return exception
     return user
@@ -61,25 +56,24 @@ async def register(
     session: Annotated[AsyncSession, Depends(get_db)],
     user: Annotated[UserSignup, Form()],
 ):
-    result = await session.execute(select(User).where(User.email == user.email))
-    existing = result.scalar_one_or_none()
-
-    if existing:
+    try:
+        await validate_user_signup(session, user)
+    except EmailAlreadyExists as exc:
         return JSONResponse(
             status_code=409,
             content={
                 "error": "email_exists",
-                "email": user.email,
+                "email": exc.email,
                 "redirect_to": "/login",
             },
-        )
+    )
+    except UsernameAlreadyTaken as exc:
+        raise BadRequestException(
+            detail=f"Username '{exc.username}' is already taken."
+    )
 
-    if existing.name:
-        raise BadRequestException(detail=f"Username {existing.name} already taken")
 
-    password_hash = get_password_hash(user.password)
-    new_user = User(email=user.email, name=user.username, password_hash=password_hash)
-    session.add(new_user)
+    new_user = await create_user(session, user)
 
     verification = generate_email_verification_link(settings.FRONTEND_URL)
 
@@ -90,13 +84,13 @@ async def register(
     )
 
     session.add(verification_token)
+    await session.commit()
 
     # Email the link
     await send_verification_email(
         new_user.email,
         verification.verification_link,
     )
-    await session.commit()
     return SignupResponse(username=user.username, email=user.email)
 
 
@@ -191,7 +185,7 @@ async def login(
 
 @router.post("/auth/logout", response_model=LogoutResponse)
 async def logout(
-    user: get_current_user,
+    user: Annotated[User, Depends(get_current_user)],
     session: Annotated[AsyncSession, Depends(get_db)],
 ) -> LogoutResponse:
 
@@ -314,7 +308,7 @@ async def resend_verification(
     return ResendVerificationResponse(message="Verification email sent.")
 
 
-@router.post("/auth/forgot-password")
+"""@router.post("/auth/forgot-password")
 async def forgot_password(
     request: ForgotPasswordRequest,
     session: Annotated[AsyncSession, Depends(get_db)],
@@ -393,6 +387,9 @@ async def reset_password(
     await session.commit()
 
     return {"message": "Password updated successfully."}
+
+"""
+
 
 
 """

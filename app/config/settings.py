@@ -1,3 +1,5 @@
+from functools import lru_cache
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -5,7 +7,7 @@ class Settings(BaseSettings):
     APP_NAME: str = "Clavis"
     ENVIRONMENT: str = "development"
     DEBUG: bool = False
-
+    SECRET_KEY: str = "LT9z2SASdVsh5B0fdX3LWkVo7XuF6F54o4fHeZA3f9U"
 
     CORS_ORIGINS: list[str] = []
     CORS_ORIGINS_REGEX: str | None = None
@@ -15,8 +17,16 @@ class Settings(BaseSettings):
         "Accept",
     ]
 
+    openai_api_key: str
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    openai_model: str = "gpt-5.6"
+    openai_transcription_model: str = "gpt-4o-transcribe"
+
+    model_config = SettingsConfigDict(
+        env_file=".env", env_file_encoding="utf-8", extra="ignore"
+    )
 
 
-settings = Settings()
+@lru_cache
+def get_settings() -> Settings:
+    return Settings()
