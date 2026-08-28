@@ -8,35 +8,15 @@ from typing import Annotated
 from datetime import datetime
 from starlette.middleware.cors import CORSMiddleware
 
-from app.exception import BadRequestException
-from app.auth.integrate import get_current_user
 from app.auth.routes import router as auth_router
 from app.scribe.routes import router as case_router
 
-from app.config.settings import settings
-from app.schemas.core import NoteBase, NoteCreate, as_form, BulkDeleteIDs
-from app.schemas.auth import UserOut, UserSignup
-from app.db.init_db import get_db
-from app.db.models import (
-    User,
-    Note,
-    File,
-    EmailVerificationToken,
-    RefreshToken,
-    PasswordResetToken,
-)
+from app.config.settings import get_settings
 
-from app.schemas.responses import (
-    NoteResponse,
-    NoteCreateResponse,
-    MessageResponse,
-    SignupResponse,
-    UpdateResponse,
-    DeleteNoteResponse,
-)
 
 app = FastAPI()
 
+settings = get_settings()
 
 app.add_middleware(
     CORSMiddleware,

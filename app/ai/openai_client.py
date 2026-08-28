@@ -2,7 +2,7 @@ from typing import Any
 
 from openai import AsyncOpenAI
 
-from app.config import get_settings
+from app.config.settings import get_settings
 from app.schemas.responses import ClinicalNote
 
 

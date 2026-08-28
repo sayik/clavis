@@ -7,7 +7,7 @@ from sqlalchemy import select, delete, update, select
 from sqlalchemy.orm import selectinload
 from datetime import datetime
 
-from ..auth.integrate import get_current_user
+from ..auth.dependencies import get_current_user
 from app.integration.s3_delete_object import delete_objects
 from app.exception import( 
     BadRequestException,
@@ -18,7 +18,7 @@ from app.exception import(
 )
 from .file_handling import save_file
 from app.integration.presigned_url import create_presigned_url
-from app.config.settings import settings
+from app.config.settings import get_settings
 from app.db.init_db import get_db
 from app.db.models import (
     User,
@@ -39,6 +39,8 @@ from app.schemas.responses import (
 )
 from app.scribe.dependency import get_scribe_service
 
+
+settings = get_settings()
 
 router = APIRouter(
     prefix="/notes",

@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from app.exception import BadRequestException, EmailAlreadyExists, UsernameAlreadyTaken
-from app.auth.integrate import get_current_user
+from app.auth.dependencies import get_current_user
 from app.auth.user_handler import create_user, validate_user_signup
 from app.auth.password_handler import get_password_hash, verify_password
 from app.auth.token_handler import (
@@ -18,7 +18,7 @@ from app.auth.token_handler import (
 )
 from app.auth.email_handler import generate_email_verification_link, send_verification_email
 
-from app.config.settings import settings
+from app.config.settings import get_settings
 from app.schemas.auth import UserOut, UserSignup, ResendVerificationResponse, RefreshResponse
 from app.db.init_db import get_db
 from app.db.models import (
@@ -40,6 +40,8 @@ from app.schemas.responses import (
     LoginResponse,
 )  
 
+
+settings = get_settings()
 router = APIRouter()
 
 

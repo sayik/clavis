@@ -13,6 +13,7 @@ dependencies = [
     "bcrypt>=5.0.0",
     "boto3>=1.43.8",
     "botocore>=1.43.8",
+    "faker>=40.37.0",
     "fastapi[standard]>=0.135.3",
     "httpx>=0.28.1",
     "openai>=3.3.1",
@@ -26,6 +27,7 @@ dependencies = [
     "python-multipart>=0.0.26",
     "ruff>=0.15.17",
     "sqlalchemy>=2.0.49",
+    "testcontainers>=4.15.0",
 ]
 
 [dependency-groups]
