@@ -1,79 +1,85 @@
 # Clavis
 
-**Clavis** is an intelligent personal knowledge and productivity management platform that combines secure cloud storage, note management, and AI-assisted organization into a single backend system.
+**Clavis** is a structured medical documentation platform that captures medical notes and supporting documents, with AI-assisted summarization and treatment-plan drafting.
 
-Designed for individuals who manage ideas, documents, tasks, and events across multiple devices, Clavis acts as a private digital workspace where information can be captured, stored, retrieved, and transformed into actionable plans.
-
-Unlike traditional note-taking applications, Clavis is being built as a foundation for AI-powered personal organization. Users can store notes and files securely in the cloud while leveraging intelligent features that help organize information, surface relevant content, and manage upcoming events, deadlines, and daily activities.
+The platform is designed to help organize clinical information into a secure, reviewable workflow. Medical notes and related documents can be stored together, processed asynchronously, and transformed into AI-generated outputs that remain available for human review rather than being treated as final clinical decisions.
 
 ## Core Capabilities
 
 * Secure user authentication and data isolation
-* Personal cloud storage for notes and files
-* Fast retrieval of documents and knowledge assets
-* Amazon S3-backed file storage with presigned URLs
-* Async architecture for scalable performance
-* Bulk note management operations
+* Structured medical note management
+* Supporting document and file storage
+* Amazon S3-backed secure document storage using presigned URLs
+* Asynchronous document processing
+* AI-assisted medical note summarization
+* AI-assisted treatment-plan drafting
+* Reviewable AI-generated outputs
+* Bulk document and note management operations
 * Dockerized deployment
 * Automated testing and validation
 
-## AI-Powered Productivity (In Development)
+## AI-Assisted Clinical Documentation
 
-Clavis is evolving beyond note storage into an AI-assisted personal operating system capable of:
+Clavis is being developed around a workflow where AI assists with documentation rather than replacing clinical judgment.
 
-* Intelligent event and schedule management
-* Deadline and reminder organization
-* AI-generated task planning
-* Context-aware note retrieval
-* Knowledge extraction from stored content
-* Semantic search across notes and documents
-* Personalized daily planning assistance
-* Natural language interaction with stored information
+Planned and in-development capabilities include:
+
+* Summarizing medical notes and supporting documents
+* Extracting relevant information from uploaded medical documents
+* Generating structured summaries from unstructured clinical notes
+* Drafting treatment plans based on documented information
+* Connecting information across related medical records
+* Providing reviewable AI-generated outputs
+* Supporting clinicians in turning documented information into structured actions
+
+AI-generated content is intended to remain **reviewable and editable by the responsible user** before being used in a clinical workflow.
 
 ## Architecture
 
-The platform follows a modern cloud-native architecture:
+The platform follows a modern cloud-native backend architecture:
 
 * **FastAPI** for high-performance API services
-* **Async SQLAlchemy** for database operations
-* **PostgreSQL** for persistent metadata storage
-* **Amazon S3** for scalable object storage
+* **Async SQLAlchemy** for asynchronous database operations
+* **PostgreSQL** for persistent structured medical metadata
+* **Amazon S3** for secure and scalable document storage
 * **Docker** for deployment and portability
-* **Pydantic** for data validation
+* **Pydantic** for data validation and schema management
 * **UV** for dependency and environment management
 
-## Vision
+The architecture separates structured medical metadata from supporting documents. Metadata is stored in PostgreSQL, while larger documents and files are stored in Amazon S3. Presigned URLs allow clients to interact with stored files without exposing long-lived storage credentials.
 
-Clavis aims to become a personal knowledge cloud where notes, files, schedules, and AI assistance converge into a single system. Rather than functioning as a simple note repository, it serves as an intelligent workspace that helps users capture information, organize their digital assets, and transform ideas into actions.
+Asynchronous processing provides a foundation for handling operations such as document ingestion, extraction, summarization, and other AI-assisted workflows without blocking API requests.
 
-# Running the Project with Docker
+## Documentation Workflow
 
-## Prerequisites
+A typical Clavis workflow looks like:
 
-Install Docker on your machine before continuing.
+```text
+Medical Note / Document
+        │
+        ▼
+   Secure Upload
+        │
+        ├──────────────► PostgreSQL
+        │                 Structured metadata
+        │
+        └──────────────► Amazon S3
+                          Supporting documents
+                                │
+                                ▼
+                     Asynchronous Processing
+                                │
+                                ▼
+                         AI-assisted Analysis
+                                │
+                  ┌─────────────┴─────────────┐
+                  ▼                               ▼
+             Summarization              Treatment Plan
+                  │                                │
+                  └─────────────┬─────────────┘
+                                ▼
+                         Human Review
 
-Verify that Docker is installed:
-
-```bash
-docker --version
-```
-
-## Clone the Repository
-
-```bash
-git clone <https://github.com/sayik/clavis>
-cd <clavis>
-```
-
-## Build the Docker Image
-
-From the project root directory, run:
-
-```bash
-docker build -t super_notes-api .
-```
-
-Docker will download the required dependencies and build an image named `super_notes-api`.
 
 ## Run the Application
 
