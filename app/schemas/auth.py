@@ -17,6 +17,9 @@ but the login is handled by fastapi HTTP Basic authentication.
 User data will be saved to database with signup endpoint
 """
 
+class MessageRespose(BaseModel):
+    message: str
+
 class Token(BaseModel):
     access_token: str
     token_type: str
@@ -30,18 +33,11 @@ class Login(BaseModel):
     email: EmailStr
     password: str
 
+
 class TokenResponse(BaseModel):
     access_token: str
     refresh_token: str
     token_type: str = "bearer"
-
-
-class RefreshRequest(BaseModel):
-    refresh_token: str
-
-
-class LogoutRequest(BaseModel):
-    refresh_token: str
 
 
 class UserOut(BaseModel):
@@ -49,3 +45,40 @@ class UserOut(BaseModel):
     email: EmailStr
     username: str
     created_at: datetime
+
+
+class LogoutRequest(BaseModel):
+    refresh_token: str = Field(
+        ...,
+        description="The refresh token issued during login.",
+    )
+    device_id: str = Field(
+        ...,
+        description="Unique identifier of the client device.",
+        max_length=64,
+    )
+
+
+class RefreshRequest(BaseModel):
+    refresh_token: str = Field(description="Refresh token issued during login.")
+    device_id: str = Field(description="Unique identifier of the client device.")
+
+
+class ResendVerificationRequest(BaseModel):
+    email: EmailStr
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+
+class LogoutResponse(BaseModel):
+    message: str
+
+class ResendVerificationResponse(MessageRespose):
+    ...
+
+class RefreshResponse(TokenResponse):
+    ...

@@ -1,5 +1,11 @@
 from sqlalchemy import DateTime, String, Boolean, ForeignKey, func
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy.orm import (
+    DeclarativeBase,
+    Mapped,
+    mapped_column,
+    relationship,
+    declared_attr,
+)
 from datetime import datetime, timedelta, UTC
 import uuid
 
@@ -21,6 +27,14 @@ class User(Base):
 
     notes: Mapped[list["Note"]] = relationship(back_populates="users", cascade="all")
     verification_tokens: Mapped[list["EmailVerificationToken"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+    refresh_tokens: Mapped[list["RefreshToken"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+    password_reset_tokens: Mapped[list["PasswordResetToken"]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
     )
@@ -81,8 +95,88 @@ class PendingDeletion(Base):
     )
 
 
-class EmailVerificationToken(Base):
+class UserTokenBase(Base):
+    __abstract__ = True
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+
+    @declared_attr
+    def user_id(cls) -> Mapped[str]:
+        return mapped_column(
+            ForeignKey("users.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        )
+
+    token_hash: Mapped[str] = mapped_column(
+        String(64),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        server_default=func.now(),
+        nullable=False,
+    )
+
+
+class EmailVerificationToken(UserTokenBase):
     __tablename__ = "email_verification_tokens"
+
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=lambda: datetime.now(UTC) + timedelta(minutes=20),
+        nullable=False,
+    )
+
+    user: Mapped["User"] = relationship(back_populates="email_verification_tokens")
+
+
+class RefreshToken(Base):
+    __tablename__ = "refresh_tokens"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+
+    user_id: Mapped[str] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    token_hash: Mapped[str] = mapped_column(
+        String(64),
+        unique=True,
+        nullable=False,
+        index=True,
+    )
+
+    device_id: Mapped[str] = mapped_column(
+        String(64),
+        nullable=False,
+        index=True,
+    )
+
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=lambda: datetime.now(UTC) + timedelta(days=30),
+        nullable=False,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        server_default=func.now(),
+        nullable=False,
+    )
+
+    user: Mapped["User"] = relationship(
+        back_populates="refresh_tokens",
+    )
+
+
+class PasswordResetToken(Base):
+    __tablename__ = "password_reset_tokens"
 
     id: Mapped[int] = mapped_column(primary_key=True)
 
@@ -111,4 +205,6 @@ class EmailVerificationToken(Base):
         nullable=False,
     )
 
-    user: Mapped["User"] = relationship(back_populates="email_verification_tokens")
+    user: Mapped["User"] = relationship(
+        back_populates="password_reset_tokens",
+    )

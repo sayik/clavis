@@ -3,8 +3,10 @@ import hashlib
 import secrets
 import aiosmtplib
 from email.message import EmailMessage
-from app.utils.settings import settings
+from app.config.settings import get_settings
 
+
+settings = get_settings()
 
 @dataclass(frozen=True)
 class EmailVerificationToken:

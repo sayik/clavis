@@ -51,3 +51,21 @@ class LoginResponse(BaseModel):
     access_token: str
     refresh_token: str
     token_type: str = "bearer"
+
+
+class ClinicalNote(BaseModel):
+    chief_complaint: str | None
+    history_of_present_illness: str | None
+    examination: str | None
+    assessment: list[str]
+    plan: list[str]
+    medications: list[str]
+    investigations: list[str]
+    follow_up: str | None
+
+class Medication(BaseModel):
+    name: str
+    dosage: str | None = None
+    frequency: str | None = None
+    duration: str | None = None
+    
