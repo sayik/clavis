@@ -1,3 +1,6 @@
+import asyncio
+import sys
+
 import pytest_asyncio
 import pytest
 
@@ -14,12 +17,18 @@ from faker import Faker
 
 from testcontainers.core.docker_client import DockerClient
 
-from testcontainers.postgres import PostgresContainer
+from testcontainers.community.postgres import PostgresContainer
 
 from app.main import app
 from app.db.init_db import get_db
-from app.auth import get_current_user
+from app.auth.dependencies import get_current_user
 from app.db.models import Base, User, File, Note
+
+
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(
+        asyncio.WindowsSelectorEventLoopPolicy()
+    )
 
 
 def is_docker_running() -> bool:
@@ -37,16 +46,13 @@ async def pg_container():
     if not is_docker_running():
         pytest.skip("Docker is required, but not running")
 
-    with PostgresContainer() as pg:
+    with PostgresContainer(driver="psycopg") as pg:
         yield pg
 
 
 @pytest_asyncio.fixture(scope="session")
 async def test_db_url(pg_container):
-    return pg_container.get_connection_url().replace(
-        "postgresql://",
-        "postgresql+asyncpg://",
-    )
+    return pg_container.get_connection_url()
 
 @pytest_asyncio.fixture(scope="session")
 async def alembic_migrations(test_db_url):
@@ -55,6 +61,9 @@ async def alembic_migrations(test_db_url):
     config.set_main_option("sqlalchemy.url", test_db_url,)
 
     command.upgrade(config, "head")
+    command.current(config)
+
+    print("Migration complete")
 
 
 @pytest_asyncio.fixture(scope="session")
