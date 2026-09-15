@@ -28,3 +28,4 @@ async def test_migration(async_engine):
     assert "users" in tables
     assert "notes" in tables
     assert "files" in tables
+    # assert "patients" in tables

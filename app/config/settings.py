@@ -17,7 +17,7 @@ class Settings(BaseSettings):
         "Accept",
     ]
 
-    openai_api_key: str
+    openai_api_key: str = None
 
     openai_model: str = "gpt-5.6"
     openai_transcription_model: str = "gpt-4o-transcribe"
