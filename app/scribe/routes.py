@@ -8,7 +8,7 @@ from sqlalchemy.orm import selectinload
 from datetime import datetime
 
 from ..auth.dependencies import get_current_user
-from app.integration.s3_delete_object import delete_objects
+from app.integration.s3.s3_delete_object import delete_objects
 from app.exception import( 
     BadRequestException,
     ForbiddenException,
@@ -17,7 +17,7 @@ from app.exception import(
     InternalServerException,
 )
 from .file_handling import save_file
-from app.integration.presigned_url import create_presigned_url
+from app.integration.s3.presigned_url import create_presigned_url
 from app.config.settings import get_settings
 from app.db.init_db import get_db
 from app.db.models import (
