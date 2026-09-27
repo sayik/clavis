@@ -23,6 +23,7 @@ from app.main import app
 from app.db.init_db import get_db
 from app.auth.dependencies import get_current_user
 from app.db.models import Base, User, File, Note
+from app.schemas.auth import UserOut
 
 
 if sys.platform == "win32":
@@ -91,10 +92,11 @@ async def override_get_db(async_engine):
 
 
 def override_get_current_user():
-    return User(
-        id=1,
-        name="test",
+    return UserOut(
+        id="1",
+        username="test",
         email="test@example.com",
+        created_at="2026-09-27 18:10:19.954582",
         password_hash="newpassword",
     )
 
