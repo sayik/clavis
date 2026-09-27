@@ -37,7 +37,7 @@ from app.schemas.responses import (
     LoginResponse,
     ClinicalNote,
 )
-from app.scribe.dependency import get_scribe_service
+# from app.scribe.dependency import get_scribe_service
 
 
 settings = get_settings()

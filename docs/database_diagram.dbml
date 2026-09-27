@@ -1,0 +1,70 @@
+Table users {
+    id varchar [pk]
+    name varchar(30) [not null, unique]
+    email varchar(255) [not null, unique]
+    email_verified boolean
+    temp_token varchar(30)
+    password_hash varchar(128)
+    created_at datetime
+}
+
+Table notes {
+    id varchar [pk]
+    title varchar(60) [not null]
+    content text
+    user_id varchar [not null]
+    created_at datetime
+    updated_at datetime
+    deleted_at datetime
+    archived_at datetime
+}
+
+Table files {
+    id varchar [pk]
+    note_id varchar [not null]
+    file_name varchar(255)
+    file_url varchar(500)
+    file_size int
+    created_at datetime
+}
+
+Table pending_deletions {
+    id varchar [pk]
+    note_id varchar [not null]
+    file_name varchar
+    status varchar(20)
+    created_at datetime
+    error_message varchar(500)
+}
+
+Table email_verification_tokens {
+    id int [pk]
+    user_id varchar [not null]
+    token_hash varchar(64) [not null, unique]
+    expires_at datetime
+    created_at datetime
+}
+
+Table refresh_tokens {
+    id int [pk]
+    user_id varchar [not null]
+    token_hash varchar(64) [not null, unique]
+    device_id varchar(64) [not null]
+    expires_at datetime
+    created_at datetime
+}
+
+Table password_reset_tokens {
+    id int [pk]
+    user_id varchar [not null]
+    token_hash varchar(64) [not null, unique]
+    expires_at datetime
+    created_at datetime
+}
+
+
+Ref: notes.user_id > users.id
+Ref: files.note_id > notes.id
+Ref: email_verification_tokens.user_id > users.id
+Ref: refresh_tokens.user_id > users.id
+Ref: password_reset_tokens.user_id > users.id

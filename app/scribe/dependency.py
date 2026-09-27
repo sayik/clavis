@@ -1,15 +1,15 @@
-from functools import lru_cache
-
-from app.ai.openai_client import OpenAIClient
-from app.scribe.service import ScribeService
-
-"""Cache instance call avoiding expiration"""
+# from functools import lru_cache
 
 
-@lru_cache
-def get_openai_client() -> OpenAIClient:
-    return OpenAIClient()
+# from app.scribe.service import ScribeService
+
+# """Cache instance call avoiding expiration"""
 
 
-def get_scribe_service() -> ScribeService:
-    return ScribeService(ai_client=get_openai_client())
+# @lru_cache
+# def get_openai_client() -> OpenAIClient:
+#     return OpenAIClient()
+
+
+# def get_scribe_service() -> ScribeService:
+#     return ScribeService(ai_client=get_openai_client())
