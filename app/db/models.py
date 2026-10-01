@@ -26,7 +26,7 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     notes: Mapped[list["Note"]] = relationship(back_populates="users", cascade="all")
-    verification_tokens: Mapped[list["EmailVerificationToken"]] = relationship(
+    email_verification_tokens: Mapped[list["EmailVerificationToken"]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
     )
