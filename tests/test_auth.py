@@ -1,9 +1,12 @@
 import pytest
 from .conftest import client
 
+
+from app.db.init_db import get_db
 from app.auth.password_handler import get_password_hash, verify_password
-from app.db.models import User
+from app.db.models import User, RefreshToken
 from app.schemas.auth import UserOut
+from app.auth.token_handler import decode_token, hash_token
 
 test_user = UserOut(
     id="1",
@@ -15,7 +18,11 @@ test_user = UserOut(
 
 
 def test_password_hashing():
-    assert get_password_hash("asf@2356.sawrA")
+    password = "asf@2356.sawrA"
+    password_hash = get_password_hash(password)
+
+    assert password_hash != password
+    assert password_hash
 
 
 def test_correct_password_matching():
@@ -32,6 +39,40 @@ def test_get_user(client):
     response = client.get("/auth/me")
     print(response.json())
     assert response.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_login_success(client):
+    password = "test-password"
+
+    user = User(
+        username="test",
+        email="test@example.com",
+        password_hash=get_password_hash(password),
+        email_verified=True,
+    )
+
+    get_db.add(user)
+    await get_db.commit()
+    await get_db.refresh(user)
+
+    response = client.post(
+        "/auth/login",
+        data={
+            "username": user.email,
+            "password": password,
+            "device_id": "test-device",
+        },
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert "access_token" in data
+    assert "refresh_token" in data
+    assert data["access_token"]
+    assert data["refresh_token"]
 
 
 def test_validate_user_signup():
