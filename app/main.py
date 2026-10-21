@@ -8,8 +8,9 @@ from typing import Annotated
 from datetime import datetime
 from starlette.middleware.cors import CORSMiddleware
 
-from app.auth.routes import router as auth_router
-from app.scribe.routes import router as case_router
+from app.api.v1.auth import router as auth_router
+from app.api.v1.consultation import router as case_router
+from app.clinical.router import router as clinical_router
 
 from app.config.settings import get_settings
 
@@ -27,8 +28,9 @@ app.add_middleware(
     allow_headers=settings.CORS_HEADERS,
 )
 
-app.include_router(auth_router)
 app.include_router(case_router)
+app.include_router(auth_router)
+app.include_router(clinical_router)
 
 ##TODO
 """
@@ -50,6 +52,8 @@ app.include_router(case_router)
 - s3 presigned for images ✔️
 
 """
+
+
 @app.get("/health")
 async def health_check():
     return {"Health": "success"}

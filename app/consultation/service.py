@@ -4,7 +4,7 @@ from typing import Sequence
 from fastapi import UploadFile
 
 from app.ai.openai_client import OpenAIClient
-from app.scribe.prompt import SCRIBE_SYSTEM_PROMPT
+from app.consultation.prompt import SCRIBE_SYSTEM_PROMPT
 from app.schemas.responses import ClinicalNote
 
 
