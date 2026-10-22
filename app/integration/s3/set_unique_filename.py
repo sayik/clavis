@@ -9,6 +9,7 @@ data = {}
 MAX_SIZE = 10 * 1024 * 1024
 size = 0
 
+
 def save_file(in_file):
     extension = in_file.filename.split(".")[-1].lower()
     if extension not in ALLOWED_EXTENSIONS:
@@ -17,7 +18,7 @@ def save_file(in_file):
     unique_id = uuid.uuid4().hex
     unique_file_name = f"{unique_id}.{extension}"
 
-    data["file_url"] = "Stored in cloud s3"
+    data["file_location"] = "S3"
     data["unique_file_name"] = unique_file_name
     """
     Needs to send file name to db and pre-signed url"""

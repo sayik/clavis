@@ -26,7 +26,7 @@ from app.exception import (
     UnprocessableEntityException,
     InternalServerException,
 )
-from app.consultation.file_handling import save_file
+from app.integration.s3.set_unique_filename import save_file
 from app.integration.s3.presigned_url import create_presigned_url
 from app.config.settings import get_settings
 from app.db.init_db import get_db

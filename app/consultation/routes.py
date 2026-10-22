@@ -16,7 +16,7 @@ from app.exception import(
     UnprocessableEntityException,
     InternalServerException,
 )
-from .file_handling import save_file
+from ..integration.s3.set_unique_filename import save_file
 from app.integration.s3.presigned_url import create_presigned_url
 from app.config.settings import get_settings
 from app.db.init_db import get_db
@@ -145,7 +145,7 @@ async def create_note(
         add_new_file = File(
             note_id=new_note.id,
             file_name=file_data["unique_file_name"],
-            file_url=file_data["file_url"],
+            file_location=file_data["file_location"],
             file_size=in_file_size,
         )
         session.add(add_new_file)
@@ -203,7 +203,7 @@ async def update_note(
         new_file = File(
             note_id=note_id,
             file_name=file_data["unique_file_name"],
-            file_url=file_data["file_url"],
+            file_location=file_data["file_location"],
             file_size=in_file_size,
         )
 

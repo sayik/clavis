@@ -10,7 +10,7 @@ from starlette.middleware.cors import CORSMiddleware
 
 from app.api.v1.auth import router as auth_router
 from app.api.v1.consultation import router as case_router
-from app.clinical.router import router as clinical_router
+from app.stats.router import router as clinical_router
 
 from app.config.settings import get_settings
 
