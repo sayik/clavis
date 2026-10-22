@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 
-from app.integtation.nova_micro import extract_clinical_data
-from app.integration.report_generator import generate_report
+from app.integtation.bedrock.nova_micro import extract_clinical_data
+from app.integration.bedrock.report_generator import generate_report
 
 
 router = APIRouter()

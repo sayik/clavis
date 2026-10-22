@@ -26,7 +26,7 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     notes: Mapped[list["Note"]] = relationship(back_populates="users", cascade="all")
-    verification_tokens: Mapped[list["EmailVerificationToken"]] = relationship(
+    email_verification_tokens: Mapped[list["EmailVerificationToken"]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
     )
@@ -67,7 +67,7 @@ class File(Base):
     )
     note_id: Mapped[str] = mapped_column(ForeignKey("notes.id"), nullable=False)
     file_name: Mapped[str] = mapped_column(String(255))
-    file_url: Mapped[str] = mapped_column(String(500))
+    file_location: Mapped[str] = mapped_column(String(500))
     file_size: Mapped[int] = mapped_column(nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
