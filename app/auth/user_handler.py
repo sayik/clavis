@@ -18,7 +18,9 @@ async def get_user_by_id(session: AsyncSession, user_id: str):
     return user
 
 async def authenticate_user(session: AsyncSession, username: str, password: str):
-    """Authenticate a user using a username and password.
+    """This is important for login purpose and check user is valid, or already in the db.
+    
+    Authenticate a user using a username and password.
 
     Retrieves the user associated with ``username`` and verifies the
     supplied password against the stored password hash. To reduce the

@@ -16,10 +16,18 @@ from app.auth.token_handler import (
     hash_token,
     decode_token,
 )
-from app.auth.email_handler import generate_email_verification_link, send_verification_email
+from app.auth.email_handler import (
+    generate_email_verification_link,
+    send_verification_email,
+)
 
 from app.config.settings import get_settings
-from app.schemas.auth import UserOut, UserSignup, ResendVerificationResponse, RefreshResponse
+from app.schemas.auth import (
+    UserOut,
+    UserSignup,
+    ResendVerificationResponse,
+    RefreshResponse,
+)
 from app.db.init_db import get_db
 from app.db.models import (
     User,
@@ -38,7 +46,7 @@ from app.schemas.auth import (
 from app.schemas.responses import (
     SignupResponse,
     LoginResponse,
-)  
+)
 
 
 settings = get_settings()
@@ -68,12 +76,9 @@ async def register(
                 "email": exc.email,
                 "redirect_to": "/login",
             },
-    )
+        )
     except UsernameAlreadyTaken as exc:
-        raise BadRequestException(
-            detail=f"Username '{exc.username}' is already taken."
-    )
-
+        raise BadRequestException(detail=f"Username '{exc.username}' is already taken.")
 
     new_user = await create_user(session, user)
 
@@ -187,13 +192,15 @@ async def login(
 
 @router.post("/auth/logout", response_model=LogoutResponse)
 async def logout(
+    token: str,
+    logout_request: LogoutRequest,
     user: Annotated[User, Depends(get_current_user)],
     session: Annotated[AsyncSession, Depends(get_db)],
 ) -> LogoutResponse:
+    # Access token must be really short TTL so logout works. Take access token and not refresh token and black list access and delete refresh token.
 
-    # Access token must be really short TTL so logout works. Take access token and not refresh token and black list aceess and delete refresh token. 
-    
-    # find user - delete refresh token attached to it 
+    # find user - delete refresh token attached to it
+    token_hash = get_password_hash(token)
 
     db_token = await session.scalar(
         select(RefreshToken).where(
@@ -393,7 +400,6 @@ async def reset_password(
 """
 
 
-
 """
 4. Change password (later)
 
@@ -408,3 +414,11 @@ Return success.
 At that point, the authentication system is complete and follows a solid, production-ready pattern.
 
 """
+
+
+@router.get("/websocket-ticket")
+async def websocket_ticket():
+    """Call from dashboard for ticket is received here and send to
+    FE and FE sends it when WEB socket is initiated
+    - Important FE JS logic to send the ticket"""
+    pass

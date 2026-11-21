@@ -26,6 +26,9 @@ class Settings(BaseSettings):
         env_file=".env", env_file_encoding="utf-8", extra="ignore"
     )
 
+    ## Redis takes seconds "ex" variable
+    WS_ticket_TTL: int = 5 * 60
+
 
 @lru_cache
 def get_settings() -> Settings:
