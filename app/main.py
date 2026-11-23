@@ -65,5 +65,5 @@ async def health_check():
 
 @app.get("/redis")
 async def get_items(redis: AsyncRedisDep):
-    redis.set("health", "ok")
+    await redis.set("health", "ok")
     return {"health": await redis.get("health")}

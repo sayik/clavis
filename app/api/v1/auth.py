@@ -6,7 +6,12 @@ from typing import Annotated
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
-from app.exception import BadRequestException, EmailAlreadyExists, UsernameAlreadyTaken
+from app.exception import (
+    BadRequestException,
+    EmailAlreadyExists,
+    UsernameAlreadyTaken,
+    UnauthorizedException,
+)
 from app.auth.dependencies import get_current_user
 from app.auth.user_handler import create_user, validate_user_signup
 from app.auth.password_handler import get_password_hash, verify_password
@@ -20,6 +25,8 @@ from app.auth.email_handler import (
     generate_email_verification_link,
     send_verification_email,
 )
+from app.auth.websocket_token import create_token
+
 
 from app.config.settings import get_settings
 from app.schemas.auth import (
@@ -42,6 +49,7 @@ from app.schemas.auth import (
     ResendVerificationRequest,
     ForgotPasswordRequest,
     LogoutResponse,
+    Token,
 )
 from app.schemas.responses import (
     SignupResponse,
@@ -416,9 +424,21 @@ At that point, the authentication system is complete and follows a solid, produc
 """
 
 
-@router.get("/websocket-ticket")
-async def websocket_ticket():
+@router.get("/websocket-ticket", response_model=Token)
+async def websocket_ticket(
+    user: Annotated[User, Depends(get_current_user)],
+):
     """Call from dashboard for ticket is received here and send to
     FE and FE sends it when WEB socket is initiated
-    - Important FE JS logic to send the ticket"""
-    pass
+    - Important FE JS logic to send the ticket
+    """
+    ## Create token
+    ## match it with user_id store it in redis
+    ## send token to be consumed
+    # 1. create container to test redis
+    # 2. test receiving token
+    if user is None:
+        raise UnauthorizedException(detail="Unauthorized request")
+    ws_token = create_token(user_id=user.id)
+
+    return Token(access_token=ws_token, token_type="ws_token")

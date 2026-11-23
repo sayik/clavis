@@ -114,16 +114,21 @@ async def file_response(
     user: Annotated[User, Depends(get_current_user)],
     session: Annotated[AsyncSession, Depends(get_db)],
 ):
-    # if user and file_name:
-    #     download_link = create_presigned_url(
-    #         file_name=file_name, method="GET", expiration=4600
-    #     )
-    #     return {"download_link": download_link}
-    # else:
-    #     raise HTTPException(status_code=400, detail="unauthorized to access")
     """I tend to use this sort of "early return" for various special cases as well as validation,
     so that the main part of the function can know that those cases have been handled."""
-    if not (user and file_name):
+    ## ADD USER_ID TO FILE DB MODEL TO VERIFY file belongs to the specific user
+    # result = await session.execute(
+    #         select(Note)
+    #         .where(
+    #             Note.id == note_id,
+    #             Note.deleted_at.is_(None),
+    #             Note.user_id == user.id,
+    #         )
+    #         .options(selectinload(Note.files))
+    #     )
+    # note = result.scalar_one_or_none()
+
+    if not file_name:
         raise BadRequestException(detail="unauthorized to access")
     download_link = create_presigned_url(
         file_name=file_name, method="GET", expiration=4600
@@ -402,8 +407,9 @@ async def create_scribe(
     """Call items from s3 and pass it onto AI service so it returns data, put all this into background task"""
     """call db for notes and files for the AI to process"""
 
-    return await get_scribe_service.process(
-        notes=notes,
-        audio=audio,
-        images=images,
-    )
+    # return await get_scribe_service.process(
+    #     notes=notes,
+    #     audio=audio,
+    #     images=images,
+    # )
+    pass

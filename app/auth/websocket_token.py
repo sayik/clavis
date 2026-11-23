@@ -5,10 +5,10 @@ from typing import Annotated
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
 
-from config.settings import WS_TOKEN_TTL
+from app.config.settings import get_settings
 from ..db.init_db import get_db
 from app.auth.user_handler import get_user_by_id
-from exception import UnauthorizedException
+from app.exception import UnauthorizedException
 from app.db.models import User
 
 
@@ -27,9 +27,7 @@ async def validate_user_id(
     )
 
     if user is None:
-        raise UnauthorizedException(
-            detail="Unauthorized"
-        )
+        raise UnauthorizedException(detail="Unauthorized")
 
     return user
 
@@ -40,12 +38,13 @@ async def create_token(redis: AsyncRedisDep, user_id: str) -> str:
     redis: AsyncRedisDep - redis connector
     user_id: str - logged in user_id"""
     token = generate_token()
-    redis.set(token, user_id, ex=WS_TOKEN_TTL)
-    return token ## send this token to the router function that calls for Token
+    redis.set(token, user_id, ex=get_settings.WS_TOKEN_TTL)
+    return token  ## send this token to the router function that calls for Token
 
 
 async def consume_token(redis: AsyncRedisDep, user_id: str):
     pass
+
 
 # async def validate_user_id(user_id: str) -> bool:
 #     session = get_db()
