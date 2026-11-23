@@ -7,15 +7,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Annotated
 from datetime import datetime
 from starlette.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
+
+from redis_fastapi import FastAPIRedis, AsyncRedisDep
 
 from app.api.v1.auth import router as auth_router
 from app.api.v1.consultation import router as case_router
-from app.stats.router import router as clinical_router
+from app.api.v1.chat import router as chat_router
 
 from app.config.settings import get_settings
 
-
 app = FastAPI()
+FastAPIRedis(app).lifespan()  ##initiated redis through lifespan
 
 settings = get_settings()
 
@@ -30,7 +33,8 @@ app.add_middleware(
 
 app.include_router(case_router)
 app.include_router(auth_router)
-app.include_router(clinical_router)
+app.include_router(case_router)
+app.include_router(chat_router)
 
 ##TODO
 """
@@ -57,3 +61,9 @@ app.include_router(clinical_router)
 @app.get("/health")
 async def health_check():
     return {"Health": "success"}
+
+
+@app.get("/redis")
+async def get_items(redis: AsyncRedisDep):
+    redis.set("health", "ok")
+    return {"health": await redis.get("health")}
